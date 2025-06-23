@@ -1,10 +1,11 @@
 use ion_macros::*;
+use std::any::Any;
 use std::fmt::Debug;
 use num_traits::{Num, ToPrimitive, FromPrimitive};
 
 pub enum NodeType{
     Program,
-    NumericLiteral,
+    NumericLiteralNode,
     Identifier,
     BinOp,
     Nil,
@@ -27,15 +28,29 @@ pub struct Identifier{
     pub symbol: String,
 }
 
-#[Expr(NodeType::NumericLiteral)]
+#[Expr(NodeType::NumericLiteralNode)]
 pub struct NumericLiteral<T: Num + Debug = f64>{
     pub value: T,
 }
-
 #[Expr(NodeType::Nil)]
 pub struct Nil{}
 
-pub trait Stmt: Debug{
-    fn kind(&self) -> NodeType;
+impl Clone for Box<dyn Stmt> {
+    fn clone(&self) -> Box<dyn Stmt> {
+        self.clone_box()
+    }
 }
-pub trait Expr: Stmt{}
+impl Clone for Box<dyn Expr> {
+    fn clone(&self) -> Box<dyn Expr> {
+        self.clone_box_expr()
+    }
+}
+
+pub trait Stmt: Debug + Any{
+    fn kind(&self) -> NodeType;
+    fn as_any(&self) -> &dyn Any;
+    fn clone_box(&self) -> Box<dyn Stmt>;
+}
+pub trait Expr: Stmt{
+    fn clone_box_expr(&self) -> Box<dyn Expr>;
+}
