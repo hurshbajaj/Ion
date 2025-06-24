@@ -14,6 +14,8 @@ pub enum TokenType{
 
     Let_k,
     Nil_k,
+    Bool_true_t,
+    Bool_false_t,
 
     Assign_f,
 
@@ -25,6 +27,8 @@ static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     let mut map = HashMap::new();
     map.insert("$", TokenType::Let_k);
     map.insert("!?", TokenType::Nil_k);
+    map.insert("true", TokenType::Bool_true_t);
+    map.insert("false", TokenType::Bool_false_t);
     map
 });
 

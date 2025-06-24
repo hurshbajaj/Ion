@@ -9,11 +9,17 @@ pub enum NodeType{
     Identifier,
     BinOp,
     Nil,
+    Bool,
 }
 
 #[Stmt(NodeType::Program)] 
 pub struct Program{
     pub body: Vec<Box<dyn Stmt>>
+}
+
+#[Expr(NodeType::Bool)]
+pub struct Bool{
+    pub value: bool
 }
 
 #[Expr(NodeType::BinOp)]

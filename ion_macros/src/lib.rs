@@ -63,12 +63,18 @@ pub fn RuntimeValue(attr: TokenStream, item: TokenStream) -> TokenStream {
     let name = &input.ident;
 
     let expanded = quote! {
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         #input
 
         impl RuntimeValue for #name {
             fn Type(&self) -> RuntimeValueType {
                 #node_type
+            }
+            fn clone_box(&self) -> Box<dyn RuntimeValue> {
+                Box::new(self.clone())
+            }
+            fn as_any(&self) -> &dyn Any {
+                self
             }
         }
     };

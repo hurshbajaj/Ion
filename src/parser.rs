@@ -82,6 +82,14 @@ unsafe fn parse_prim_expr() -> Box<dyn Expr>{
             tokens.remove(0);
             Box::new(Nil{})
         },
+        TokenType::Bool_true_t => {
+            tokens.remove(0);
+            Box::new(Bool{value: true})
+        },
+        TokenType::Bool_false_t => {
+            tokens.remove(0);
+            Box::new(Bool{value: false})
+        },
         _ => { panic!("Unexpected Token: {:?}", TkType) }
     }
 }
