@@ -30,9 +30,32 @@ unsafe fn parse_stmt() -> Box<dyn Stmt>{
         TokenType::Let_k => {
             return parse_var_decl();
         },
+        TokenType::Identifier => {
+            if tokens.len() > 1 { //TODO CHANGE TO (2) B4 RELEASE
+                if tokens[1].value_type == TokenType::Assign_f {
+                    return parse_var_asg();
+                }else{
+                    return parse_expr();
+                }
+            }else{
+                panic!("Trailing Identifier...")
+            }
+        },
         _ => {
             return parse_expr();
         }
+    }
+}
+
+unsafe fn parse_var_asg() -> Box<dyn Stmt> {
+    let lhs = parse_expr();
+    tokens.remove(0);
+    if tokens.len() > 1{
+        let rhs = parse_expr();
+        end_stmt();
+        return Box::new(VarAsg{lhs: lhs, rhs: rhs})
+    }else{
+        panic!("Incomplete Variable Assignment");
     }
 }
 
@@ -62,7 +85,6 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
         value,
     })
 }
-
 
 unsafe fn parse_expr() -> Box<dyn Expr>{
     return parse_additive_expr();
@@ -131,7 +153,7 @@ unsafe fn parse_prim_expr() -> Box<dyn Expr>{
             tokens.remove(0);
             Box::new(Bool{value: false})
         },
-        _ => { panic!("Unexpected Token: {:?}", TkType) }
+        _ => { panic!("Unexpected Token: {:?}; Cannot be parsed as an expression", TkType) }
     }
 }
 

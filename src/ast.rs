@@ -5,9 +5,11 @@ use num_traits::{Num, ToPrimitive, FromPrimitive};
 
 use crate::lexer::TokenType;
 
+#[derive(PartialEq)]
 pub enum NodeType{
     Program,
     VarDecl,
+    VarAsg,
 
     NumericLiteralNode,
     Identifier,
@@ -27,6 +29,13 @@ pub struct VarDeclaration{
     pub flags: Vec<TokenType>,
     pub value: Box<dyn Expr>
 }
+
+#[Stmt(NodeType::VarAsg)] 
+pub struct VarAsg{
+    pub lhs: Box<dyn Expr>,
+    pub rhs: Box<dyn Expr>
+}
+
 
 #[Expr(NodeType::Bool)]
 pub struct Bool{

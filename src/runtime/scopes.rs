@@ -1,6 +1,13 @@
 use std::collections::HashMap;
 
+use crate::lexer::TokenType;
 use crate::values::RuntimeValue;
+
+#[derive(Clone)]
+pub struct VariableEntry {
+    pub value: Box<dyn RuntimeValue>,
+    pub flags: Vec<TokenType>,
+}
 
 #[derive(Clone)]
 pub enum Parent{
@@ -11,7 +18,7 @@ pub enum Parent{
 #[derive(Clone)]
 pub struct Scope{
     parent: Parent,
-    variables: HashMap<String, Box<dyn RuntimeValue>>
+    variables: HashMap<String, VariableEntry>
 }
 
 impl Scope{
@@ -21,17 +28,12 @@ impl Scope{
            variables: HashMap::new(),
        }
     }
-    pub fn var_decl(&mut self, varname: String, value: Box<dyn RuntimeValue>) ->  Box<dyn RuntimeValue> {
+    pub fn var_decl(&mut self, varname: String, value: Box<dyn RuntimeValue>, flags: Vec<TokenType>) ->  Box<dyn RuntimeValue> {
         if self.variables.get(&varname).is_some() {panic!("{}", format!("variable already defined [{:?}]", varname));}
-        self.variables.insert(varname, value.clone());
+        self.variables.insert(varname, VariableEntry{value: value.clone(), flags: flags});
         return value;
     }
-    pub fn var_assign(&mut self, varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
-        let mut env = self.resolve_mut(&varname);
-        let mut k = env.variables.get_mut(&varname).unwrap();
-        *k = value.clone();
-        return value;
-    }
+
     pub fn resolve(&self, varname: &String) -> &Scope {
         if self.variables.get(varname).is_some() {
             return self; 
@@ -55,8 +57,22 @@ impl Scope{
             Parent::Nil => panic!("Variable doesn't exist in the current scope"),
         }
     }
+
+    pub fn var_assign(&mut self, varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
+        if self.loopup_flags(varname.clone()).contains(&TokenType::Const_f) {panic!("Cannot reassign variable marked with flag: <const>")}
+        let env = self.resolve_mut(&varname);
+        let k = env.variables.get_mut(&varname).unwrap();
+        k.value = value.clone();
+        value
+    }
+
     pub fn loopup(&self, varname: String) -> &Box<dyn RuntimeValue> {
         let env = self.resolve(&varname);
-        return env.variables.get(&varname).unwrap();
+        &env.variables.get(&varname).unwrap().value
+    }
+
+    pub fn loopup_flags(&self, varname: String) -> &Vec<TokenType> {
+        let env = self.resolve(&varname);
+        &env.variables.get(&varname).unwrap().flags
     }
 }

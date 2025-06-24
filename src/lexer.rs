@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::StdoutLock;
 use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone)]
@@ -88,23 +89,28 @@ pub fn tokenize(src: String) -> Vec<Token>{
                } 
 
                if source.len() > 0 && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace() {
-                   let mut isk = false;
-                   while source.len() > 0 && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace(){
-                       ta += source.remove(0).as_str();
+                   let mut i = 0;
+                   let mut ta = String::new();
+                    while source.len() > i && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace(){
+                        ta += source[i].as_str();
+                        i += 1;
+                        if let Some(tax) = keywords.get(ta.as_str()){
+                            tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
+                            source.drain(..i);
+                            break;
+                        }
+                    }
+                }
 
-                       if let Some(tax) = keywords.get(ta.as_str()){
-                           tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
-                           isk = true;
-                           break;
-                       }
+               if source.len() > 0 && is_identifier(source[0].as_str()) {
+                   let mut isk = false;
+                   while source.len() > 0 && is_identifier(source[0].as_str()){
+                       ta += source.remove(0).as_str();
                    }
-                   if !isk{
-                       tokens.push(Token{value: ta.clone(), value_type: TokenType::Identifier});
-                   }
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Identifier});
                    continue;
                }
                
-               println!("{:?}", tokens);
                panic!("Token not found");
             }
         }
@@ -113,6 +119,10 @@ pub fn tokenize(src: String) -> Vec<Token>{
     tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
     return tokens;
 }   
+
+fn is_identifier(c: &str) -> bool {
+    return c.chars().collect::<Vec<char>>()[0].is_alphabetic() || c.chars().collect::<Vec<char>>()[0] == '_';
+}
 
 use std::fs;
 

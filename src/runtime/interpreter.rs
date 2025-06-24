@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 
-use crate::ast::{self, BinExpr, Identifier, Nil, NumericLiteral, Program, Stmt, VarDeclaration};
+use crate::ast::{self, BinExpr, Identifier, Nil, NodeType, NumericLiteral, Program, Stmt, VarAsg, VarDeclaration};
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, NilVal, NumericVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
@@ -40,9 +40,30 @@ pub fn evaluate<'a>(ASTnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> Runtim
         ast::NodeType::Program => eval_program(ASTnode, scope),
         ast::NodeType::VarDecl => {
             eval_var_decl(ASTnode.as_any().downcast_ref::<VarDeclaration>().unwrap(), scope)
-        }
+        },
+        ast::NodeType::VarAsg => {
+            eval_var_asg(ASTnode.as_any().downcast_ref::<VarAsg>().unwrap(), scope)
+        },
         _ => panic!("Can't evaluate AST node yet: {:?}", ASTnode),
     }
+}
+
+fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+    if unwrap.lhs.kind() != NodeType::Identifier {
+        panic!("Can't assign value to parsed Expression");
+    }
+    let wrapped_rhs = evaluate(unwrap.rhs.clone(), scope);
+
+    let refined_rhs = match wrapped_rhs {
+        RuntimeValueServe::Owned(val) => val,
+        RuntimeValueServe::Ref(val) => val.clone_box(),
+    };
+
+    scope
+        .borrow_mut()
+        .var_assign(unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap().symbol.clone(), refined_rhs);
+
+    RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
 
 fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
@@ -55,15 +76,12 @@ fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'a RefCell<Scope>) -> Runt
 
     scope
         .borrow_mut()
-        .var_decl(unwrap.identifier.clone(), val_to_store);
+        .var_decl(unwrap.identifier.clone(), val_to_store, unwrap.flags.clone());
 
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
 
-fn eval_identifier<'a>(
-    unwrap: &Identifier,
-    scope: &'a RefCell<Scope>,
-) -> RuntimeValueServe<'a> {
+fn eval_identifier<'a>( unwrap: &Identifier, scope: &'a RefCell<Scope> ) -> RuntimeValueServe<'a> {
     let scope_borrow = scope.borrow();
     let val_ref = Ref::map(scope_borrow, |s| {
         s.loopup(unwrap.symbol.clone())
@@ -140,11 +158,7 @@ fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'a RefCell<Scope>) -> RuntimeValu
     RuntimeValueServe::Owned(Box::new(NilVal {}))
 }
 
-fn eval_numeric_bin_expr<'a>(
-    lhs_val: RuntimeValueServe<'a>,
-    rhs_val: RuntimeValueServe<'a>,
-    op: &str,
-) -> RuntimeValueServe<'a> {
+fn eval_numeric_bin_expr<'a>( lhs_val: RuntimeValueServe<'a>, rhs_val: RuntimeValueServe<'a>, op: &str) -> RuntimeValueServe<'a> {
     let lhs_num = match lhs_val {
         RuntimeValueServe::Owned(ref v) => v.as_any().downcast_ref::<NumericVal>().unwrap().value,
         RuntimeValueServe::Ref(v) => v.as_any().downcast_ref::<NumericVal>().unwrap().value,
