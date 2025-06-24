@@ -1,5 +1,6 @@
 #![feature(trait_upcasting)]
 
+use std::cell::RefCell;
 use std::fs;
 mod lexer;
 mod parser;
@@ -16,8 +17,7 @@ fn main() {
         .expect("Failed to read file 'code.io'");
 
     unsafe{
-        let mut env = Scope::new(scopes::Parent::Nil);
-        env.var_decl("test_var".to_string(), Box::new(NumericVal::<f64>{value: 5.0}));
+        let mut env = RefCell::new(Scope::new(scopes::Parent::Nil));
 
         let output = parser::prodAST(source);
         println!("Abstract Syntax Tree: {:?}", output);

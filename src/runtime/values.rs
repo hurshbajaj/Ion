@@ -8,7 +8,11 @@ pub enum RuntimeValueType {
     Nil,
     Numeric,
     Boolean,
+    StmtExec,
 }
+
+#[RuntimeValue(RuntimeValueType::StmtExec)]
+pub struct StmtExecS{}
 
 #[RuntimeValue(RuntimeValueType::Nil)]
 pub struct NilVal{}

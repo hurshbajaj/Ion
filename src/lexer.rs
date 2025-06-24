@@ -22,6 +22,8 @@ pub enum TokenType{
 
     LeftParen, RightParen,
     BinOp,
+    Semicolon,
+    EOF,
 }
 
 static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
@@ -48,6 +50,9 @@ pub fn tokenize(src: String) -> Vec<Token>{
         match source[0].as_str() {
             "(" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftParen});
+            },
+            ";" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Semicolon});
             },
             ")" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen});
@@ -105,6 +110,7 @@ pub fn tokenize(src: String) -> Vec<Token>{
         }
     }
     
+    tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
     return tokens;
 }   
 

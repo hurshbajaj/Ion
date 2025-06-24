@@ -13,6 +13,12 @@ pub unsafe fn prodAST(source_c: String) -> Program {
     let mut program = Program{body: vec![]};
 
     while tokens.len() > 0{
+        if tokens.first().is_some() {
+            if tokens.first().unwrap().value_type == TokenType::EOF {
+                break;
+            }
+        }
+
         program.body.push(parse_stmt());
     }
 
@@ -39,7 +45,7 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
 
     let mut found_flags = vec![];
 
-    while lexer::flags.get(&tokens[0].value.to_string()).is_some() {
+    while lexer::flags.get(&tokens[0].value.as_str()).is_some() {
         found_flags.push(tokens.remove(0).value_type);
     }
 
@@ -49,6 +55,7 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
         value = parse_expr(); 
     }
 
+    end_stmt();
     Box::new(VarDeclaration {
         identifier: ident.value,
         flags: found_flags,
@@ -136,3 +143,10 @@ where
     T::from_str(s).unwrap()
 }
 
+unsafe fn end_stmt(){
+    if tokens[0].value_type == TokenType::Semicolon{
+        tokens.remove(0);
+    }else{
+        panic!("Statement must end with a ;");
+    }
+}

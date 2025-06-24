@@ -1,1 +1,2 @@
-test_var + 10
+$var <asg> 1/2 ;
+var + var
