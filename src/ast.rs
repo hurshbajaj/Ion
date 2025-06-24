@@ -3,8 +3,12 @@ use std::any::Any;
 use std::fmt::Debug;
 use num_traits::{Num, ToPrimitive, FromPrimitive};
 
+use crate::lexer::TokenType;
+
 pub enum NodeType{
     Program,
+    VarDecl,
+
     NumericLiteralNode,
     Identifier,
     BinOp,
@@ -15,6 +19,13 @@ pub enum NodeType{
 #[Stmt(NodeType::Program)] 
 pub struct Program{
     pub body: Vec<Box<dyn Stmt>>
+}
+
+#[Stmt(NodeType::VarDecl)] 
+pub struct VarDeclaration{
+    pub identifier: String,
+    pub flags: Vec<TokenType>,
+    pub value: Box<dyn Expr>
 }
 
 #[Expr(NodeType::Bool)]

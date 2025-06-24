@@ -7,7 +7,7 @@ pub struct Token{
     pub value_type: TokenType
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType{
     Number,
     Identifier,
@@ -18,6 +18,7 @@ pub enum TokenType{
     Bool_false_t,
 
     Assign_f,
+    Const_f,
 
     LeftParen, RightParen,
     BinOp,
@@ -32,9 +33,10 @@ static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     map
 });
 
-static flags: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
+pub static flags: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     let mut map = HashMap::new();
     map.insert("<asg>", TokenType::Assign_f);
+    map.insert("<const>", TokenType::Const_f);
     map
 });
 

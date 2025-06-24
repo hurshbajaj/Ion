@@ -2,7 +2,7 @@ use std::panic;
 use std::str::FromStr;
 use std::fmt::Debug;
 
-use crate::{ast::*, lexer::*};
+use crate::{ast::*, lexer::{self, *}};
 use num_traits::{Num, ToPrimitive, FromPrimitive};
 
 static mut tokens: Vec<Token> = vec![];
@@ -20,8 +20,42 @@ pub unsafe fn prodAST(source_c: String) -> Program {
 }
 
 unsafe fn parse_stmt() -> Box<dyn Stmt>{
-   return parse_expr(); 
+    match tokens[0].value_type {
+        TokenType::Let_k => {
+            return parse_var_decl();
+        },
+        _ => {
+            return parse_expr();
+        }
+    }
 }
+
+unsafe fn parse_var_decl() -> Box<dyn Stmt> {
+    tokens.remove(0); 
+    let ident = tokens.remove(0);
+    if ident.value_type != TokenType::Identifier {
+        panic!("Missing Identifier");
+    }
+
+    let mut found_flags = vec![];
+
+    while lexer::flags.get(&tokens[0].value.to_string()).is_some() {
+        found_flags.push(tokens.remove(0).value_type);
+    }
+
+    let mut value: Box<dyn Expr> = Box::new(Nil {});
+
+    if found_flags.contains(&TokenType::Assign_f) {
+        value = parse_expr(); 
+    }
+
+    Box::new(VarDeclaration {
+        identifier: ident.value,
+        flags: found_flags,
+        value,
+    })
+}
+
 
 unsafe fn parse_expr() -> Box<dyn Expr>{
     return parse_additive_expr();
