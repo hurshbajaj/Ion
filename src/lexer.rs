@@ -194,6 +194,7 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
     }
     
     tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
+    println!("Lexed: {:?}", tokens);
     return tokens;
 }   
 
