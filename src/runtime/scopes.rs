@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use crate::ast::Identifier;
 use crate::interpreter::static_type_check;
-use crate::lexer::{Flags, TokenType};
+use crate::lexer::{Attr, Flags, TokenType};
 use crate::values::RuntimeValue;
 
 #[derive(Clone)]
@@ -62,18 +63,6 @@ impl Scope{
 
     pub fn var_assign(&mut self, varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
         if self.loopup_flags(varname.clone()).contains(&Flags::Const_f) {panic!("Cannot reassign variable marked with flag: <const>")}
-
-        let _ = self.resolve(&varname);
-
-        let f_flag = self.loopup_flags(varname.clone()).iter().find_map(|token_type| {
-            if let crate::lexer::Flags::Struct_f(attr) = token_type {
-                Some(attr.clone())
-            } else {
-                None
-            }
-        }).unwrap_or_else(|| panic!("Missing flag <structure> not found in Assosciated Variable Flags"));
-
-        static_type_check(value.clone(), f_flag);
 
         let env = self.resolve_mut(&varname);
         let k = env.variables.get_mut(&varname).unwrap();

@@ -37,6 +37,7 @@ pub enum Flags{
     Assign_f,
     Const_f,
     Struct_f(Attr),
+    Complex_f(Attr),
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -45,7 +46,8 @@ pub enum Attr{
     Numeric,
     Bool,
     Object,
-    Complex(String)
+    Complex(String),
+    ComplexKind,
 }
 
 static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
@@ -70,9 +72,15 @@ pub unsafe fn get_flag(flag: &str, attr: Option<Attr>) -> Option<Flags> {
                 panic!("Missing Attr")
             });
             Some(Flags::Struct_f(unwrap.clone()))
+        },        
+        "<complex>" => {
+            let unwrap = attr.unwrap_or_else(||{
+                panic!("Missing Attr")
+            });
+            Some(Flags::Complex_f(unwrap.clone()))
         },
         _ => {
-            None
+            panic!("Unrecognised Flag")
         }
    } 
 }
@@ -88,6 +96,9 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
             },
             "object" => {
                 Some(Attr::Object)
+            },
+            "complex" => {
+                Some(Attr::ComplexKind)
             },
             _ => {
                 Some(Attr::Complex(attr.to_string()))
@@ -140,13 +151,41 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
 
                 let mut ta = String::new();
 
-               if source.len() > 0 && source[0].chars().collect::<Vec<char>>()[0].is_numeric(){
-                    while source.len() > 0 && source[0].chars().collect::<Vec<char>>()[0].is_numeric(){
-                        ta += source.remove(0).as_str();
+                if source.len() > 0 && source[0].chars().next().unwrap().is_numeric() {
+                    let mut ta = String::new();
+                    let mut i = 0;
+                    let mut dot_seen = false;
+
+                    while i < source.len() {
+                        let ch = source[i].chars().next().unwrap();
+                        if ch.is_numeric() {
+                            ta += source[i].as_str();
+                            i += 1;
+                        } else {
+                            break;
+                        }
                     }
-                    tokens.push(Token{value: ta, value_type: TokenType::Number});
-                    continue;
-               }
+
+                    if i < source.len() && source[i] == "." && i + 1 < source.len() && source[i + 1].chars().next().unwrap().is_numeric() {
+                        ta += source[i].as_str(); 
+                        i += 1;
+
+                        while i < source.len() && source[i].chars().next().unwrap().is_numeric() {
+                            ta += source[i].as_str();
+                            i += 1;
+                        }
+                    }
+
+                    if !ta.is_empty() {
+                        tokens.push(Token {
+                            value: ta.clone(),
+                            value_type: TokenType::Number,
+                        });
+                        source.drain(..i);
+                        continue;
+                    }
+                }
+
                if source[0] == "<"{
                    let mut ta = String::new();
 
@@ -154,7 +193,6 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
                        ta += source.remove(0).as_str();
                    }
 
-                   //tokens.push(Token{value: ta.clone(), value_type: flags.get(ta.as_str()).cloned().expect("Flag Token not found")});
                    tokens.push(Token{value: ta.clone(), value_type: TokenType::Flag(get_flag(parse_flag_head(ta.clone().as_str()).as_str(), get_attr(parse_attr( ta.clone().as_str() ))).unwrap())});
                    continue;
                } 

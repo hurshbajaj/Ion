@@ -89,7 +89,24 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
 }
 
 unsafe fn parse_expr() -> Box<dyn Expr>{
-    return parse_object_expr();
+    return parse_object_literal_expr();
+}
+
+unsafe fn parse_object_literal_expr() -> Box<dyn Expr> {
+   if tokens[0].value_type != TokenType::Identifier || tokens[1].value_type != TokenType::LeftCurly{
+        return parse_object_expr();
+   }
+   tokens.drain(..2);
+   let mut props = vec![];
+   while tokens[0].value_type == TokenType::Identifier {
+        let key = tokens.remove(0).value;
+        tokens.remove(0);
+        let value = parse_expr();
+        tokens.remove(0);
+        props.push(PropertyLiteral{key, value});
+   }
+   tokens.remove(0);
+   return Box::new(ObjectLiteral{properties: props})
 }
 
 unsafe fn parse_object_expr() -> Box<dyn Expr> {
@@ -143,40 +160,55 @@ unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
     left
 }
 
-unsafe fn parse_prim_expr() -> Box<dyn Expr>{
+unsafe fn parse_prim_expr() -> Box<dyn Expr> {
     let TkType = tokens[0].clone();
 
-    match TkType.value_type{
+    match TkType.value_type {
         TokenType::Identifier => {
-            Box::new(Identifier{symbol: tokens.remove(0).value})
-        },
+            Box::new(Identifier { symbol: tokens.remove(0).value })
+        }
         TokenType::Number => {
-            Box::new(NumericLiteral::<f64>{value: parse_num::<f64>( tokens.remove(0).value.as_str() )})
-        },
+            Box::new(NumericLiteral::<f64> {
+                value: parse_num::<f64>(tokens.remove(0).value.as_str()),
+            })
+        }
+        TokenType::BinOp => {
+            if TkType.value == "-" {
+                tokens.remove(0);
+                tokens.insert(0, Token{value: "*".to_string(), value_type: TokenType::BinOp});
+                tokens.insert(0, Token{value: "-1".to_string(), value_type: TokenType::Number});
+                return parse_expr()
+            }else{
+                panic!("Trailing Binary Operator")
+            }
+        }
         TokenType::LeftParen => {
             tokens.remove(0);
             let value = parse_expr();
-            if tokens[0].value != ")"{
+            if tokens[0].value != ")" {
                 panic!("Missing Closing Paren");
             }
             tokens.remove(0);
             return value;
-        },
+        }
         TokenType::Nil_k => {
             tokens.remove(0);
-            Box::new(Nil{})
-        },
+            Box::new(Nil {})
+        }
         TokenType::Bool_true_t => {
             tokens.remove(0);
-            Box::new(Bool{value: true})
-        },
+            Box::new(Bool { value: true })
+        }
         TokenType::Bool_false_t => {
             tokens.remove(0);
-            Box::new(Bool{value: false})
-        },
-        _ => { panic!("Unexpected Token: {:?}; Cannot be parsed as an expression", TkType) }
+            Box::new(Bool { value: false })
+        }
+        _ => {
+            panic!("Unexpected Token: {:?}; Cannot be parsed as an expression", TkType)
+        }
     }
 }
+
 
 pub fn parse_num<T>(s: &str) -> T
 where
@@ -193,5 +225,4 @@ unsafe fn end_stmt(){
         panic!("Statement must end with a ;");
     }
 }
-
 

@@ -21,7 +21,9 @@ pub enum NodeType{
     Bool,
 
     Object,
-    Property
+    Property,
+    ObjectLiteral,
+    PropertyLiteral
 }
 
 #[Stmt(NodeType::Program)] 
@@ -64,6 +66,9 @@ pub struct Identifier{
 pub struct NumericLiteral<T: Num + Debug = f64>{
     pub value: T,
 }
+
+
+
 #[Expr(NodeType::Nil)]
 pub struct Nil{}
 
@@ -76,6 +81,17 @@ pub struct Property{
 #[Expr(NodeType::Object)]
 pub struct Object{
     pub properties: Vec<Property>,
+}
+
+#[Expr(NodeType::PropertyLiteral)]
+pub struct PropertyLiteral{
+    pub key: String,
+    pub value: Box<dyn Expr>,
+}
+
+#[Expr(NodeType::ObjectLiteral)]
+pub struct ObjectLiteral{
+    pub properties: Vec<PropertyLiteral>,
 }
 
 impl Clone for Box<dyn Stmt> {

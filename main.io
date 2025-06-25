@@ -1,3 +1,2 @@
-$obj_main <asg> <structure: object> { x: obj_inner; };
-
-obj_main
+$num_one <asg><structure:numeric> 2;
+1.0+2
