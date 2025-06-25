@@ -1,7 +1,7 @@
 #![feature(trait_upcasting)]
 
 use std::cell::RefCell;
-use std::fs;
+use std::{fs, panic};
 mod lexer;
 mod parser;
 mod ast;
@@ -13,8 +13,8 @@ use crate::scopes::Scope;
 use crate::values::{BooleanVal, NilVal, NumericVal};
 
 fn main() {
-    let source = fs::read_to_string("code.io")
-        .expect("Failed to read file 'code.io'");
+    let source = fs::read_to_string("main.io")
+        .expect("Failed to read file 'main.io'");
 
     unsafe{
         let mut env = RefCell::new(Scope::new(scopes::Parent::Nil));

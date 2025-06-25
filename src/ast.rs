@@ -3,19 +3,25 @@ use std::any::Any;
 use std::fmt::Debug;
 use num_traits::{Num, ToPrimitive, FromPrimitive};
 
-use crate::lexer::TokenType;
+use crate::lexer::{Attr, Flags, TokenType};
 
 #[derive(PartialEq)]
 pub enum NodeType{
+    //Stmt
     Program,
     VarDecl,
     VarAsg,
+
+    //Expr
 
     NumericLiteralNode,
     Identifier,
     BinOp,
     Nil,
     Bool,
+
+    Object,
+    Property
 }
 
 #[Stmt(NodeType::Program)] 
@@ -26,7 +32,7 @@ pub struct Program{
 #[Stmt(NodeType::VarDecl)] 
 pub struct VarDeclaration{
     pub identifier: String,
-    pub flags: Vec<TokenType>,
+    pub flags: Vec<Flags>,
     pub value: Box<dyn Expr>
 }
 
@@ -60,6 +66,17 @@ pub struct NumericLiteral<T: Num + Debug = f64>{
 }
 #[Expr(NodeType::Nil)]
 pub struct Nil{}
+
+#[Expr(NodeType::Property)]
+pub struct Property{
+    pub key: String,
+    pub value: Attr,
+}
+
+#[Expr(NodeType::Object)]
+pub struct Object{
+    pub properties: Vec<Property>,
+}
 
 impl Clone for Box<dyn Stmt> {
     fn clone(&self) -> Box<dyn Stmt> {

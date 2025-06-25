@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
-use crate::lexer::TokenType;
+use crate::interpreter::static_type_check;
+use crate::lexer::{Flags, TokenType};
 use crate::values::RuntimeValue;
 
 #[derive(Clone)]
 pub struct VariableEntry {
     pub value: Box<dyn RuntimeValue>,
-    pub flags: Vec<TokenType>,
+    pub flags: Vec<Flags>,
+    pub locked: bool,
 }
 
 #[derive(Clone)]
@@ -28,9 +30,9 @@ impl Scope{
            variables: HashMap::new(),
        }
     }
-    pub fn var_decl(&mut self, varname: String, value: Box<dyn RuntimeValue>, flags: Vec<TokenType>) ->  Box<dyn RuntimeValue> {
+    pub fn var_decl(&mut self, varname: String, value: Box<dyn RuntimeValue>, flags: Vec<Flags>) ->  Box<dyn RuntimeValue> {
         if self.variables.get(&varname).is_some() {panic!("{}", format!("variable already defined [{:?}]", varname));}
-        self.variables.insert(varname, VariableEntry{value: value.clone(), flags: flags});
+        self.variables.insert(varname, VariableEntry{value: value.clone(), flags: flags, locked: false});
         return value;
     }
 
@@ -59,10 +61,26 @@ impl Scope{
     }
 
     pub fn var_assign(&mut self, varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
-        if self.loopup_flags(varname.clone()).contains(&TokenType::Const_f) {panic!("Cannot reassign variable marked with flag: <const>")}
+        if self.loopup_flags(varname.clone()).contains(&Flags::Const_f) {panic!("Cannot reassign variable marked with flag: <const>")}
+
+        let _ = self.resolve(&varname);
+
+        let f_flag = self.loopup_flags(varname.clone()).iter().find_map(|token_type| {
+            if let crate::lexer::Flags::Struct_f(attr) = token_type {
+                Some(attr.clone())
+            } else {
+                None
+            }
+        }).unwrap_or_else(|| panic!("Missing flag <structure> not found in Assosciated Variable Flags"));
+
+        static_type_check(value.clone(), f_flag);
+
         let env = self.resolve_mut(&varname);
         let k = env.variables.get_mut(&varname).unwrap();
+        while k.locked{};
+        k.locked = true;
         k.value = value.clone();
+        k.locked = false;
         value
     }
 
@@ -71,7 +89,7 @@ impl Scope{
         &env.variables.get(&varname).unwrap().value
     }
 
-    pub fn loopup_flags(&self, varname: String) -> &Vec<TokenType> {
+    pub fn loopup_flags(&self, varname: String) -> &Vec<Flags> {
         let env = self.resolve(&varname);
         &env.variables.get(&varname).unwrap().flags
     }

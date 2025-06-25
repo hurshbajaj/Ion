@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::io::StdoutLock;
 use once_cell::sync::Lazy;
+use std::fs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token{
     pub value: String,
     pub value_type: TokenType
@@ -11,6 +12,7 @@ pub struct Token{
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenType{
     Number,
+    BinOp,
     Identifier,
 
     Let_k,
@@ -18,13 +20,32 @@ pub enum TokenType{
     Bool_true_t,
     Bool_false_t,
 
-    Assign_f,
-    Const_f,
+    Flag(Flags),
 
     LeftParen, RightParen,
-    BinOp,
+    LeftBrace, RightBrace,
     Semicolon,
+    Colon,
+    Comma,
     EOF,
+    RightCurly,
+    LeftCurly,
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum Flags{
+    Assign_f,
+    Const_f,
+    Struct_f(Attr),
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum Attr{
+    //Types
+    Numeric,
+    Bool,
+    Object,
+    Complex(String)
 }
 
 static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
@@ -36,14 +57,48 @@ static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     map
 });
 
-pub static flags: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    map.insert("<asg>", TokenType::Assign_f);
-    map.insert("<const>", TokenType::Const_f);
-    map
-});
+pub unsafe fn get_flag(flag: &str, attr: Option<Attr>) -> Option<Flags> {
+   match flag {
+        "<asg>" => {
+            Some(Flags::Assign_f)
+        },
+        "<const>" => {
+            Some(Flags::Const_f)
+        },
+        "<structure>" => {
+            let unwrap = attr.unwrap_or_else(||{
+                panic!("Missing Attr")
+            });
+            Some(Flags::Struct_f(unwrap.clone()))
+        },
+        _ => {
+            None
+        }
+   } 
+}
 
-pub fn tokenize(src: String) -> Vec<Token>{
+pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
+    if let Some(attr) = atr {
+        match attr {
+            "numeric" => {
+                Some(Attr::Numeric)
+            },
+            "bool" => {
+                Some(Attr::Bool)
+            },
+            "object" => {
+                Some(Attr::Object)
+            },
+            _ => {
+                Some(Attr::Complex(attr.to_string()))
+            }
+        } 
+    }else{
+        return None
+    }
+}
+
+pub unsafe fn tokenize(src: String) -> Vec<Token>{
     let mut tokens: Vec<Token> = vec![];
     let mut source: Vec<String> = src.chars().map(|x| x.to_string()).collect();
 
@@ -55,8 +110,23 @@ pub fn tokenize(src: String) -> Vec<Token>{
             ";" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::Semicolon});
             },
+            ":" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Colon});
+            },
             ")" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen});
+            },
+            "[" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftBrace});
+            },
+            "]" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightBrace});
+            },    
+            "{" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftCurly});
+            },
+            "}" => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightCurly});
             },
             "+" | "-" | "*" | "/"=> {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::BinOp});
@@ -84,21 +154,27 @@ pub fn tokenize(src: String) -> Vec<Token>{
                        ta += source.remove(0).as_str();
                    }
 
-                   tokens.push(Token{value: ta.clone(), value_type: flags.get(ta.as_str()).cloned().expect("Flag Token not found")});
+                   //tokens.push(Token{value: ta.clone(), value_type: flags.get(ta.as_str()).cloned().expect("Flag Token not found")});
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Flag(get_flag(parse_flag_head(ta.clone().as_str()).as_str(), get_attr(parse_attr( ta.clone().as_str() ))).unwrap())});
                    continue;
                } 
 
                if source.len() > 0 && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace() {
                    let mut i = 0;
                    let mut ta = String::new();
-                    while source.len() > i && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace(){
+                   let mut kf = false;
+                    while source.len() > i && !source[i].chars().collect::<Vec<char>>()[0].is_whitespace(){
                         ta += source[i].as_str();
                         i += 1;
                         if let Some(tax) = keywords.get(ta.as_str()){
                             tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
                             source.drain(..i);
+                            kf = true;
                             break;
                         }
+                    }
+                    if kf {
+                        continue;
                     }
                 }
 
@@ -111,6 +187,7 @@ pub fn tokenize(src: String) -> Vec<Token>{
                    continue;
                }
                
+               println!("{}", source[0]);
                panic!("Token not found");
             }
         }
@@ -120,17 +197,25 @@ pub fn tokenize(src: String) -> Vec<Token>{
     return tokens;
 }   
 
-fn is_identifier(c: &str) -> bool {
-    return c.chars().collect::<Vec<char>>()[0].is_alphabetic() || c.chars().collect::<Vec<char>>()[0] == '_';
+fn parse_flag_head(s: &str) -> String {
+    match s.find(':') {
+        Some(idx) => {
+            format!("{}>", s[..idx].trim_end())
+        }
+        None => s.trim_end().to_string(),
+    }
 }
 
-use std::fs;
+fn parse_attr(s: &str) -> Option<&str> {
+    if let Some(colon_idx) = s.find(':') {
+        let after_colon = &s[colon_idx + 1..];
+        let end_idx = after_colon.find('>').unwrap_or(after_colon.len());
+        Some(after_colon[..end_idx].trim())
+    } else {
+        None
+    }
+}
 
-fn main() {
-    let source = fs::read_to_string("code.io")
-        .expect("Failed to read file 'code.io'");
-
-    let tokens = tokenize(source);
-
-    println!("{:?}", tokens);
+fn is_identifier(c: &str) -> bool {
+    return c.chars().collect::<Vec<char>>()[0].is_alphabetic() || c.chars().collect::<Vec<char>>()[0] == '_';
 }

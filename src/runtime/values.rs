@@ -24,7 +24,7 @@ pub struct NumericVal<T: Num + Debug = f64>{
 
 #[RuntimeValue(RuntimeValueType::Boolean)]
 pub struct BooleanVal{
-    pub value: bool,
+    pub val: bool,
 }
 
 impl Clone for Box<dyn RuntimeValue> {

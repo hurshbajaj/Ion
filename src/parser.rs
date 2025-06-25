@@ -32,7 +32,7 @@ unsafe fn parse_stmt() -> Box<dyn Stmt>{
         },
         TokenType::Identifier => {
             if tokens.len() > 1 { //TODO CHANGE TO (2) B4 RELEASE
-                if tokens[1].value_type == TokenType::Assign_f {
+                if tokens[1].value_type == TokenType::Flag(Flags::Assign_f) {
                     return parse_var_asg();
                 }else{
                     return parse_expr();
@@ -68,13 +68,15 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
 
     let mut found_flags = vec![];
 
-    while lexer::flags.get(&tokens[0].value.as_str()).is_some() {
-        found_flags.push(tokens.remove(0).value_type);
+    while let TokenType::Flag(ref flag) = tokens[0].value_type {
+        let flag = flag.clone(); // clone the flag so you keep ownership
+        tokens.remove(0);
+        found_flags.push(flag);
     }
 
     let mut value: Box<dyn Expr> = Box::new(Nil {});
 
-    if found_flags.contains(&TokenType::Assign_f) {
+    if found_flags.contains(&Flags::Assign_f) {
         value = parse_expr(); 
     }
 
@@ -87,7 +89,26 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
 }
 
 unsafe fn parse_expr() -> Box<dyn Expr>{
-    return parse_additive_expr();
+    return parse_object_expr();
+}
+
+unsafe fn parse_object_expr() -> Box<dyn Expr> {
+   if tokens[0].value_type != TokenType::LeftCurly{
+        return parse_additive_expr();
+   }
+   tokens.remove(0);
+   let mut props = vec![];
+   while tokens[0].value_type == TokenType::Identifier {
+        let key = tokens.remove(0).value;
+        tokens.remove(0);
+        let value = get_attr(Some(tokens.remove(0).value.as_str())).unwrap_or_else(||{
+            panic!("Incorrect type attr provided for object key")
+        });
+        tokens.remove(0);
+        props.push(Property{key, value});
+   }
+   tokens.remove(0);
+   return Box::new(Object{properties: props})
 }
 
 unsafe fn parse_additive_expr() -> Box<dyn Expr> {
@@ -172,3 +193,5 @@ unsafe fn end_stmt(){
         panic!("Statement must end with a ;");
     }
 }
+
+

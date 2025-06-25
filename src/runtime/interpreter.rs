@@ -2,6 +2,7 @@ use std::any::Any;
 use std::cell::{Ref, RefCell};
 
 use crate::ast::{self, BinExpr, Identifier, Nil, NodeType, NumericLiteral, Program, Stmt, VarAsg, VarDeclaration};
+use crate::lexer::{Attr, TokenType};
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, NilVal, NumericVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
@@ -28,7 +29,7 @@ pub fn evaluate<'a>(ASTnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> Runtim
         }
         ast::NodeType::Nil => RuntimeValueServe::Owned(Box::new(NilVal {})),
         ast::NodeType::Bool => RuntimeValueServe::Owned(Box::new(BooleanVal {
-            value: ASTnode
+            val: ASTnode
                 .as_any()
                 .downcast_ref::<ast::Bool>()
                 .unwrap()
@@ -52,6 +53,7 @@ fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeValueS
     if unwrap.lhs.kind() != NodeType::Identifier {
         panic!("Can't assign value to parsed Expression");
     }
+    let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap();
     let wrapped_rhs = evaluate(unwrap.rhs.clone(), scope);
 
     let refined_rhs = match wrapped_rhs {
@@ -61,7 +63,7 @@ fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeValueS
 
     scope
         .borrow_mut()
-        .var_assign(unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap().symbol.clone(), refined_rhs);
+        .var_assign(lhs_refined.symbol.clone(), refined_rhs);
 
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
@@ -73,6 +75,17 @@ fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'a RefCell<Scope>) -> Runt
         RuntimeValueServe::Owned(val) => val,
         RuntimeValueServe::Ref(val) => val.clone_box(),
     };
+
+    let f_flag = unwrap.flags.iter().find_map(|token_type| {
+        if let crate::lexer::Flags::Struct_f(attr) = token_type {
+            Some(attr.clone())
+        } else {
+            None
+        }
+    }).unwrap_or_else(|| panic!("Missing flag <structure>"));
+
+    static_type_check(val_to_store.clone(), f_flag);
+
 
     scope
         .borrow_mut()
@@ -185,3 +198,22 @@ fn eval_numeric_bin_expr<'a>( lhs_val: RuntimeValueServe<'a>, rhs_val: RuntimeVa
     RuntimeValueServe::Owned(Box::new(NumericVal { value: result }))
 }
 
+pub fn static_type_check(value: Box<dyn RuntimeValue>, type_ideal: Attr) {
+    match type_ideal {
+        Attr::Numeric => {
+            if value.as_any().downcast_ref::<NumericVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
+            else {panic!("Incorrect Type Assignement");}
+        },
+        Attr::Bool => {
+            if value.as_any().downcast_ref::<BooleanVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
+            else {panic!("Incorrect Type Assignement");}
+        },
+        Attr::Object => {
+            //if value.as_any().downcast_ref::<ObjectVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
+            //else {panic!("Incorrect Type Assignement");}
+        }
+        _ => {
+            todo!()
+        }
+    }
+}
