@@ -5,7 +5,7 @@
 For the setup, just run:
 
 ```bash
-git clone https://github.com/hurshbajaj/Ion && cd Ion && make build
+git clone https://github.com/hurshbajaj/Ion && cd Ion && make install && make build
 ```
 
 ## ▶️ Try the First Example
@@ -13,15 +13,22 @@ git clone https://github.com/hurshbajaj/Ion && cd Ion && make build
 To try out the first example, feel free to run:
 
 ```bash
-make run --file t1.io
+make run file="examples/t1.io"
 ```
+
+Or if you want to let your own creativity run wild, feel free to
+
+```bash
+make run file="examples/main.io"
+```
+[Editing it however so you want]
 
 ## 💡 REPL Mode
 
 Moreover, we even have a REPL — if you're simply looking for some light play with my project 🤗🤗🤗
 
 ```bash
-make run --repl 
+make run 
 ```
 
 ---

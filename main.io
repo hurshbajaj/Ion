@@ -1,1 +1,1 @@
-object[property]
+object[property]()
