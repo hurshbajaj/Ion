@@ -30,7 +30,7 @@ make run --repl
 
 This project is written entirely by me, including this message —  
 
-with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's md formatting inspo;
-
+with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's MD formatting inspo;
+(Yes... the emojis used are intentional)
 **Thank you!**
 
