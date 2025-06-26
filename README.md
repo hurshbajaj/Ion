@@ -3,7 +3,7 @@
 For the setup, just run:
 
 ```
-<command>
+git clone https://github.com/hurshbajaj/Ion && cd Ion
 ```
 
 ## ▶️ Try the First Example
@@ -11,7 +11,7 @@ For the setup, just run:
 To try out the first example, feel free to run:
 
 ```
-<command>
+cargo run --file t1.io
 ```
 
 ## 💡 REPL Mode
@@ -19,7 +19,7 @@ To try out the first example, feel free to run:
 Moreover, we even have a REPL — if you're simply looking for some light play with my project 🤗🤗🤗
 
 ```
-<command>
+cargo run --repl 
 ```
 
 ---
