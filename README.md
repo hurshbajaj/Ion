@@ -23,6 +23,7 @@ Moreover, we even have a REPL — if you're simply looking for some light play w
 ## ✨ Author Note
 
 This project is written completely by me, including this message —  
+
 with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's md formatting inspo;
 
 **Thank you!**
