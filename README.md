@@ -36,6 +36,7 @@ This project is written entirely by me, including this message —
 
 with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's MD formatting inspo;
 (Yes... the emojis used are intentional)
+
 As for the setup, in case you are not comfortable with WSL, base commands should be the same, feel free to format them as needed.
 **Thank you!**
 
