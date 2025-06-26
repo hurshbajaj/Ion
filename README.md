@@ -1,6 +1,6 @@
 ## 🚀 Setup [WSL] 
 
-[In case of Other, base commands should be the same, feel free to format them as needed]
+In case of Other, base commands should be the same, feel free to format them as needed.
 
 For the setup, just run:
 
