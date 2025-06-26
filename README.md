@@ -17,6 +17,7 @@ To try out the first example, feel free to run:
 ## 💡 REPL Mode
 
 Moreover, we even have a REPL — if you're simply looking for some light play with my project 🤗🤗🤗
+<command>
 
 ---
 
