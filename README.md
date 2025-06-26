@@ -38,5 +38,6 @@ with AI support being limited to light debugging, conceptual understanding for m
 (Yes... the emojis used are intentional)
 
 As for the setup, in case you are not comfortable with WSL, base commands should be the same, feel free to format them as needed.
+
 **Thank you!**
 
