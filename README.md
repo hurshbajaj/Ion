@@ -19,8 +19,9 @@ make run file="examples/t1.io"
 Or if you want to let your own creativity run wild, feel free to
 
 ```bash
-make run file="examples/main.io"
+make run file="./main.io"
 ```
+
 [Editing it however so you want]
 
 ## 💡 REPL Mode
