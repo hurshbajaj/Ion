@@ -1,6 +1,6 @@
 ## 🚀 Setup [WSL] 
 
-[In case of Bash or Fsh or Other; base commands should be the same, feel free to format them if needed for they are already simple]
+[In case of Bash or Fsh or Other, base commands should be the same, feel free to format them if needed for they are already simple...]
 
 For the setup, just run:
 
