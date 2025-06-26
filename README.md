@@ -3,7 +3,7 @@
 For the setup, just run:
 
 ```
-<your setup command here>
+<command>
 ```
 
 ## ▶️ Try the First Example
@@ -11,7 +11,7 @@ For the setup, just run:
 To try out the first example, feel free to run:
 
 ```
-<your example run command here>
+<command>
 ```
 
 ## 💡 REPL Mode
@@ -23,7 +23,7 @@ Moreover, we even have a REPL — if you're simply looking for some light play w
 ## ✨ Author Note
 
 This project is written completely by me, including this message —  
-with AI support being limited to light debugging or conceptual understanding for me whilst writing this.
+with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's md formatting inspo;
 
 **Thank you!**
 
