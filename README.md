@@ -28,7 +28,7 @@ make run --repl
 
 ## ✨ Author Note
 
-This project is written completely by me, including this message —  
+This project is written entirely by me, including this message —  
 
 with AI support being limited to light debugging, conceptual understanding for me whilst writing this and this message's md formatting inspo;
 
