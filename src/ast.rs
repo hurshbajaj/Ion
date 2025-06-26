@@ -21,9 +21,13 @@ pub enum NodeType{
     Bool,
 
     Object,
+    MemberExpr,
+
     Property,
     ObjectLiteral,
-    PropertyLiteral
+    PropertyLiteral,
+
+    CallExpr
 }
 
 #[Stmt(NodeType::Program)] 
@@ -92,6 +96,19 @@ pub struct PropertyLiteral{
 #[Expr(NodeType::ObjectLiteral)]
 pub struct ObjectLiteral{
     pub properties: Vec<PropertyLiteral>,
+}
+
+#[Expr(NodeType::MemberExpr)]
+pub struct MemberExpr{
+    pub obj: Box<dyn Expr>,
+    pub prop: Box<dyn Expr>,
+    pub computed: bool,
+}
+
+#[Expr(NodeType::CallExpr)]
+pub struct CallExpr{
+    pub args: Vec<Box<dyn Expr>>,
+    pub call_to: Box<dyn Expr>,
 }
 
 impl Clone for Box<dyn Stmt> {

@@ -461,8 +461,18 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
                 if v_refined.properties.get(k).is_some(){}
                 else {panic!("Incorrect Type Assignement");}
 
-                static_type_check(v_refined.properties.get(k).unwrap().clone(), v.clone(), Some(ideal.clone()), scope);
+                if let Attr::Complex(ref cmplx) = v.clone() {
+                    static_type_check(v_refined.properties.get(k).unwrap().clone(), Attr::ComplexKind, Some(Identifier{symbol: cmplx.clone()}), scope);
+                }else{
+                    static_type_check(v_refined.properties.get(k).unwrap().clone(), v.clone(), None, scope);
+                }
+
                 
+            }
+            for prop in v_refined.properties.iter() {
+                if !lookup_refined.properties.get(prop.0).is_some() {
+                    panic!("Extra Fields")
+                }
             }
 
        }

@@ -16,14 +16,29 @@ fn main() {
     let source = fs::read_to_string("main.io")
         .expect("Failed to read file 'main.io'");
 
-    unsafe{
+    unsafe {
         let mut env = RefCell::new(Scope::new(scopes::Parent::Nil));
 
-        let output = parser::prodAST(source);
-        println!("Abstract Syntax Tree: {:?}", output);
-        let evaluated = interpreter::evaluate(Box::new(output), &env);
-        println!("Runtime Value Debug: {:?}", evaluated);
+        // Stage 1: Show Original Source
+        if print_ {
+            println!("\n-------------------------- Original -------------------------------\n");
+            println!("{}\n", source);
+        }
 
+        // Stage 2: Parse to AST
+        let output = parser::prodAST(source.clone());
+        if print_ {
+            println!("{:?}\n", output);
+        }
+
+        // Stage 3: Evaluate
+        let evaluated = interpreter::evaluate(Box::new(output.clone()), &env);
+        if print_ {
+            println!("-------------------------- Runtime -------------------------------\n");
+            println!("Runtime Value Debug: {:?}\n", evaluated);
+        } else {
+            println!("{:?}\n", evaluated);
+        }
     }
-
 }
+

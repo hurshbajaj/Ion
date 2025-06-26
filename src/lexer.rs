@@ -3,6 +3,8 @@ use std::io::StdoutLock;
 use once_cell::sync::Lazy;
 use std::fs;
 
+use crate::print_;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token{
     pub value: String,
@@ -30,6 +32,7 @@ pub enum TokenType{
     EOF,
     RightCurly,
     LeftCurly,
+    Dot,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -123,6 +126,9 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
             },
             ":" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::Colon});
+            },
+            "." => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Dot});
             },
             ")" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen});
@@ -225,14 +231,17 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
                    continue;
                }
                
-               println!("{}", source[0]);
                panic!("Token not found");
             }
         }
     }
-    
     tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
-    println!("Lexed: {:?}", tokens);
+
+    if print_{
+        println!("\n-------------------------- Lexer -------------------------------\n");
+        println!("{:?}\n", tokens);
+        println!("-------------------------- Abstract Syntax Tree -------------------------------\n");
+    }
     return tokens;
 }   
 

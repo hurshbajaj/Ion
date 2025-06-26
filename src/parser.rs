@@ -1,4 +1,3 @@
-use std::panic;
 use std::str::FromStr;
 use std::fmt::Debug;
 
@@ -145,7 +144,7 @@ unsafe fn parse_additive_expr() -> Box<dyn Expr> {
 }
 
 unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
-    let mut left = parse_prim_expr();
+    let mut left = parse_call_mem_expr();
 
     while !tokens.is_empty() && (tokens[0].clone().value == "*" || tokens[0].clone().value == "/") {
         let op = tokens.remove(0).value;
@@ -158,6 +157,76 @@ unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
     }
 
     left
+}
+
+unsafe fn parse_call_mem_expr() -> Box<dyn Expr>{
+    let member = parse_mem_expr();
+    if tokens[0].value_type == TokenType::LeftParen {
+        return parse_call_expr(member);
+    }
+    return member;
+}
+
+unsafe fn parse_call_expr(call_to: Box<dyn Expr>) -> Box<dyn Expr> { //CallExpr alw
+    let mut call_expr = Box::new(CallExpr{
+        call_to,
+        args: parse_args()
+    });
+    if tokens[0].value_type == TokenType::LeftParen {
+        call_expr = Box::new(parse_call_expr(call_expr).as_any().downcast_ref::<CallExpr>().unwrap().clone());
+    }
+    return call_expr;
+}   
+
+unsafe fn parse_args() -> Vec<Box<dyn Expr>> { 
+    tokens.remove(0);
+    let mut args = vec![];
+    if tokens[0].value_type == TokenType::RightParen {}
+    else{
+        args = parse_args_list();
+    }
+    if tokens[0].value_type != TokenType::RightParen {
+        panic!("Missing Closing Paren");
+    }
+    tokens.remove(0);
+    return args;
+
+}
+
+unsafe fn parse_args_list() -> Vec<Box<dyn Expr>> {
+    let mut args = vec![parse_expr()];
+    while tokens[0].value_type == TokenType::Comma {
+        tokens.remove(0);
+        args.push(parse_expr());
+    }
+    return args;
+}
+
+unsafe fn parse_mem_expr() -> Box<dyn Expr> {
+    let mut obj = parse_prim_expr();
+    while tokens[0].value_type == TokenType::Dot || tokens[0].value_type == TokenType::LeftBrace {
+        let operator = tokens.remove(0);
+        let prop: Box<dyn Expr>;
+        let computed: bool;
+        if operator.value_type == TokenType::Dot {
+            prop = parse_prim_expr();
+            computed = false;
+            if !prop.as_any().downcast_ref::<Identifier>().is_some() {
+                panic!("Right hand side of the dot operator must be an Identifier");
+            }
+        }
+        else{
+            computed = true;
+            prop = parse_expr();
+            if tokens[0].value_type != TokenType::RightBrace {
+                panic!("Missing right brace");
+            }
+            tokens.remove(0);
+        }
+        obj = Box::new(MemberExpr{obj, prop, computed});
+    }
+
+    return obj;
 }
 
 unsafe fn parse_prim_expr() -> Box<dyn Expr> {
