@@ -1,9 +1,8 @@
+use crate::interpreter::{unwrap_runtime_value_serve, RuntimeValueServe};
+use crate::lexer::Flags;
+use crate::values::{NativeFnValue, NilVal, RuntimeValue};
+use std::cell::RefCell;
 use std::collections::HashMap;
-
-use crate::ast::Identifier;
-use crate::interpreter::static_type_check;
-use crate::lexer::{Attr, Flags, TokenType};
-use crate::values::RuntimeValue;
 
 #[derive(Clone)]
 pub struct VariableEntry {
@@ -33,7 +32,7 @@ impl Scope{
     }
     pub fn var_decl(&mut self, varname: String, value: Box<dyn RuntimeValue>, flags: Vec<Flags>) ->  Box<dyn RuntimeValue> {
         if self.variables.get(&varname).is_some() {panic!("{}", format!("variable already defined [{:?}]", varname));}
-        self.variables.insert(varname, VariableEntry{value: value.clone(), flags: flags, locked: false});
+        self.variables.insert(varname, VariableEntry{value: value.clone(), flags, locked: false});
         return value;
     }
 
@@ -83,3 +82,22 @@ impl Scope{
         &env.variables.get(&varname).unwrap().flags
     }
 }
+
+pub fn init<'a>() -> Scope {
+   let mut env = Scope::new(Parent::Nil);
+   env.var_decl("log".to_string(), Box::new(NativeFnValue{call: Box::new(log_fn as fn(_, _) -> _)}), vec![Flags::Const_f]);
+
+   env
+}
+
+fn log_fn<'a>(args: Vec<RuntimeValueServe>, _scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    println!("{}", unwrap_runtime_value_serve(args[0].clone()));
+    return RuntimeValueServe::Owned(Box::new(NilVal{}))
+}
+
+// finish user def fns
+// refine tests
+// recheck makefile
+// make repl
+// check .io
+// hc

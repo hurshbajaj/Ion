@@ -1,20 +1,18 @@
-use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
-use std::thread::scope;
 
-use crate::ast::{self, BinExpr, Identifier, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
-use crate::lexer::{Attr, TokenType};
+use crate::ast::{self, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
+use crate::lexer::Attr;
 use crate::scopes::Scope;
-use crate::values::{BooleanVal, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
+use crate::values::{BooleanVal, FuncStructVal, NativeFnValue, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
 #[derive(Debug)]
-pub enum RuntimeValueServe<'a> {
+pub enum RuntimeValueServe {
     Owned(Box<dyn RuntimeValue>),
-    Ref(Ref<'a, Box<dyn RuntimeValue>>),
+    Ref(Ref<'static, Box<dyn RuntimeValue>>),
 }
 
-impl<'a> Clone for RuntimeValueServe<'a> {
+impl Clone for RuntimeValueServe {
     fn clone(&self) -> Self {
         match self {
             RuntimeValueServe::Owned(b) => RuntimeValueServe::Owned(b.clone()),
@@ -24,16 +22,16 @@ impl<'a> Clone for RuntimeValueServe<'a> {
 }
 
 
-pub fn evaluate<'a>(ASTnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
-    match ASTnode.kind() {
+pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    match astnode.kind() {
         ast::NodeType::NumericLiteralNode => {
-            let val = ASTnode
+            let val = astnode
                 .as_any()
                 .downcast_ref::<NumericLiteral<f64>>() // Still parsing as f64
                 .unwrap()
                 .value;
 
-            let minimized = minimize_numeric(val); // <- call to logic you built
+            let minimized = minimize_numeric(val); 
 
             let boxed: Box<dyn RuntimeValue> = match minimized {
                 MinimizedNumeric::I8(v) => Box::new(v),
@@ -50,43 +48,67 @@ pub fn evaluate<'a>(ASTnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> Runtim
 
             RuntimeValueServe::Owned(boxed)
         }
-
         ast::NodeType::Identifier => {
-            eval_identifier(ASTnode.as_any().downcast_ref::<Identifier>().unwrap(), scope)
+            eval_identifier(astnode.as_any().downcast_ref::<Identifier>().unwrap(), scope)
 
         }
         ast::NodeType::Nil => RuntimeValueServe::Owned(Box::new(NilVal {})),
         ast::NodeType::Bool => RuntimeValueServe::Owned(Box::new(BooleanVal {
-            val: ASTnode
+            val: astnode
                 .as_any()
                 .downcast_ref::<ast::Bool>()
                 .unwrap()
                 .value,
         })),
         ast::NodeType::BinOp => {
-            eval_bin_expr(ASTnode.as_any().downcast_ref::<BinExpr>().unwrap(), scope)
+            eval_bin_expr(astnode.as_any().downcast_ref::<BinExpr>().unwrap(), scope)
         },
         ast::NodeType::Object => {
-            eval_obj_expr(ASTnode.as_any().downcast_ref::<Object>().unwrap(), scope)
+            eval_obj_expr(astnode.as_any().downcast_ref::<Object>().unwrap(), scope)
         },
         ast::NodeType::ObjectLiteral => {
-            eval_obj_literal_expr(ASTnode.as_any().downcast_ref::<ObjectLiteral>().unwrap(), scope)
+            eval_obj_literal_expr(astnode.as_any().downcast_ref::<ObjectLiteral>().unwrap(), scope)
+        },
+        ast::NodeType::FnStruct => {
+            eval_fn_struct(astnode.as_any().downcast_ref::<FnStruct>().unwrap(), scope)
+        },
+        ast::NodeType::CallExpr => {
+            eval_call_expr(astnode.as_any().downcast_ref::<CallExpr>().unwrap(), scope)
         }
-        ast::NodeType::Program => eval_program(ASTnode, scope),
+        ast::NodeType::Program => eval_program(astnode, scope),
         ast::NodeType::VarDecl => {
-            eval_var_decl(ASTnode.as_any().downcast_ref::<VarDeclaration>().unwrap(), scope)
+            eval_var_decl(astnode.as_any().downcast_ref::<VarDeclaration>().unwrap(), scope)
         },
         ast::NodeType::VarAsg => {
-            eval_var_asg(ASTnode.as_any().downcast_ref::<VarAsg>().unwrap(), scope)
+            eval_var_asg(astnode.as_any().downcast_ref::<VarAsg>().unwrap(), scope)
         },
-        _ => panic!("Can't evaluate AST node yet: {:?}", ASTnode),
+        ast::NodeType::MemberExpr => {
+            eval_membr_expr(astnode.as_any().downcast_ref::<MemberExpr>().unwrap(), scope)
+        },
+        _ => panic!("Can't evaluate AST node yet: {:?}", astnode),
     }
 }
 
-fn eval_obj_literal_expr<'a>(unwrap: &ObjectLiteral, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+fn eval_membr_expr(unwrap: &MemberExpr , scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    evaluate(unwrap.clone().prop, scope) 
+}
+
+fn eval_call_expr<'a>(unwrap: &CallExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    let args = unwrap.args.iter().map(|a| evaluate(a.clone(), scope) ).collect();
+    let func = unwrap_runtime_value_serve( evaluate(unwrap.call_to.clone() , scope) );
+
+    if func.Type() == RuntimeValueType::NativeFn {
+        let result = func.as_any().downcast_ref::<NativeFnValue>().unwrap().call.call_fn(args, scope);
+        return result;
+    }
+    todo!();
+}
+
+//ptr restructure
+fn eval_obj_literal_expr<'a>(unwrap: &ObjectLiteral, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let mut object = ObjectLiteralVal { properties: HashMap::new() };
     for prop in &unwrap.properties {
-        let mut val = evaluate(  prop.value.clone() , scope); //LET IT BE FU*KING CLONED IVE THOUGHT ABT THIS U FU*KING ******
+        let val = evaluate(  prop.value.clone() , scope); 
         if let RuntimeValueServe::Owned(v) = val{
             object.properties.insert(prop.key.clone(), v);
         }else if let RuntimeValueServe::Ref(v) = val{
@@ -97,17 +119,28 @@ fn eval_obj_literal_expr<'a>(unwrap: &ObjectLiteral, scope: &'a RefCell<Scope>) 
     RuntimeValueServe::Owned(Box::new(object))
 }
 
-fn eval_obj_expr<'a>(unwrap: &Object, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+fn eval_obj_expr<'a>(unwrap: &Object, _scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let mut object = ObjectVal { properties: HashMap::new() };
     for prop in &unwrap.properties {
-        let mut val = prop.value.clone(); //LET IT BE FU*KING CLONED IVE THOUGHT ABT THIS U FU*KING ******
+        let val = prop.value.clone(); 
 
         object.properties.insert(prop.key.clone(), val);
     }
     RuntimeValueServe::Owned(Box::new(object))
 }
 
-pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+fn eval_fn_struct<'a>(unwrap: &FnStruct, _scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    let mut fn_struct = FuncStructVal{parameters: HashMap::new(), return_type: (&unwrap.ret_type).clone()};
+    for param in &unwrap.params {
+        let val = param.param_type.clone();
+
+        fn_struct.parameters.insert(param.param.clone(), val);
+    }
+
+    RuntimeValueServe::Owned(Box::new(fn_struct))
+}
+
+pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     if unwrap.lhs.kind() != NodeType::Identifier {
         panic!("Can't assign value to parsed Expression");
     }
@@ -115,10 +148,7 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeVa
     let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap();
     let wrapped_rhs = evaluate(unwrap.rhs.clone(), scope);
 
-    let refined_rhs = match wrapped_rhs {
-        RuntimeValueServe::Owned(val) => val,
-        RuntimeValueServe::Ref(val) => val.clone_box(),
-    };
+    let refined_rhs = unwrap_runtime_value_serve(wrapped_rhs);
 
     let scope_refined = scope.borrow().clone();
     let _ = scope_refined.resolve(&lhs_refined.symbol);
@@ -148,7 +178,7 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'a RefCell<Scope>) -> RuntimeVa
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
 
-pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let evaluated = evaluate(unwrap.value.clone(), scope);
 
     let val_to_store = match evaluated {
@@ -238,7 +268,7 @@ pub fn minimize_numeric(value: f64) -> MinimizedNumeric {
     }
 }
 
-fn eval_identifier<'a>( unwrap: &Identifier, scope: &'a RefCell<Scope> ) -> RuntimeValueServe<'a> {
+fn eval_identifier<'a>( unwrap: &Identifier, scope: &'static RefCell<Scope> ) -> RuntimeValueServe {
     let scope_borrow = scope.borrow();
     let val_ref = Ref::map(scope_borrow, |s| {
         s.loopup(unwrap.symbol.clone())
@@ -247,7 +277,7 @@ fn eval_identifier<'a>( unwrap: &Identifier, scope: &'a RefCell<Scope> ) -> Runt
 }
 
 
-fn eval_program<'a>(astnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+fn eval_program<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let program = astnode.as_any().downcast_ref::<Program>().unwrap();
 
     if program.body.is_empty() {
@@ -261,7 +291,7 @@ fn eval_program<'a>(astnode: Box<dyn Stmt>, scope: &'a RefCell<Scope>) -> Runtim
     evaluate(program.body.last().unwrap().clone(), scope)
 }
 
-fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'a RefCell<Scope>) -> RuntimeValueServe<'a> {
+fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let lhs = evaluate(unwrap.left.clone(), scope);
     let rhs = evaluate(unwrap.right.clone(), scope);
 
@@ -362,11 +392,11 @@ fn is_float(val: &RuntimeValueServe) -> bool {
 }
 
 pub fn eval_numeric_bin_expr<'a>(
-    lhs_val: RuntimeValueServe<'a>,
-    rhs_val: RuntimeValueServe<'a>,
+    lhs_val: RuntimeValueServe,
+    rhs_val: RuntimeValueServe,
     op: &str,
-    scope: &'a RefCell<Scope>,
-) -> RuntimeValueServe<'a> {
+    scope: &'static RefCell<Scope>,
+) -> RuntimeValueServe {
 
     let should_use_float = is_float(&lhs_val) || is_float(&rhs_val);
 
@@ -402,13 +432,12 @@ pub fn eval_numeric_bin_expr<'a>(
         }
     };
 
-    // Wrap and re-evaluate to minimize the result
     let temp_expr = Box::new(NumericLiteral { value: result });
     evaluate(temp_expr, scope)
 }
 
 
-pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, complex: Option<Identifier>, scope: &'a RefCell<Scope>) {
+pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, complex: Option<Identifier>, scope: &'static RefCell<Scope>) {
     match type_ideal {
         Attr::Numeric => {
             if is_numeric_val(&value) || value.as_any().downcast_ref::<NilVal>().is_some() {} 
@@ -422,15 +451,21 @@ pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, com
             if value.as_any().downcast_ref::<ObjectVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
             else {panic!("Incorrect Type Assignement");}
         },
+        Attr::FnStruct => {
+            if value.as_any().downcast_ref::<FuncStructVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
+            else {panic!("Incorrect Type Assignement");}
+        },
         Attr::ComplexKind => {
             let unwrap = complex.unwrap_or_else(|| panic!("Complex Struct defined without complex flag specification"));
             complex_static_type_check(unwrap, value, scope);
         }
         _ => {
-            todo!()
+            panic!("Can't use as type");
         }
     }
 }
+
+//openfull
 
 macro_rules! is_numeric_val {
     ($value:expr, $( $t:ty ),*) => {
@@ -447,9 +482,7 @@ fn is_numeric_val(value: &Box<dyn RuntimeValue>) -> bool {
     )
 }
 
-
-
-fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>, scope: &'a RefCell<Scope>) {
+fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>, scope: &'static RefCell<Scope>) {
     let lookup = eval_identifier(&ideal, scope);
     if let RuntimeValueServe::Ref(lookup_unwrap) = lookup{
        if lookup_unwrap.as_any().downcast_ref::<ObjectVal>().is_some(){
@@ -480,3 +513,12 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
         panic!("I honestly dont get paid enough for this");
     }
 }
+
+pub fn unwrap_runtime_value_serve<'a>(value: RuntimeValueServe) -> Box<dyn RuntimeValue> {
+    match value {
+        RuntimeValueServe::Owned(val) => val,
+        RuntimeValueServe::Ref(val) => val.clone_box(),
+    }
+}
+
+//openfull

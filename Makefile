@@ -26,9 +26,9 @@ build:
 
 run:
 ifeq ($(file),)
-	cargo run -- repl
+	./target/release/Ion repl
 else
-	cargo run -- $(file)
+	./target/release/Ion $(file)
 endif
 
 clean:

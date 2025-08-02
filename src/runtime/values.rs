@@ -1,12 +1,13 @@
 use ion_macros::RuntimeValue;
 use num_traits::Num;
 use std::any::Any;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Debug;
-
-use crate::ast::Expr;
+use std::fmt::{Debug, Display};
 use crate::interpreter::RuntimeValueServe;
 use crate::lexer::Attr;
+use crate::scopes::Scope;
+use crate::values_impls;
 
 #[derive(PartialEq)]
 pub enum RuntimeValueType {
@@ -16,6 +17,8 @@ pub enum RuntimeValueType {
     ObjectVal,
     ObjectLiteralVal,
     StmtExec,
+    FnStructVal,
+    NativeFn
 }
 
 #[RuntimeValue(RuntimeValueType::StmtExec)]
@@ -28,7 +31,7 @@ pub struct NilVal{}
 pub struct NumericVal<T: Num + Debug = f64>{
     pub value: T,
 }
-impl<T: Num + Debug + Clone + 'static> RuntimeValue for NumericVal<T> {
+impl<'a, T: Num + Debug + Display + Clone + 'static> RuntimeValue for NumericVal<T> {
     fn Type(&self) -> RuntimeValueType {
         RuntimeValueType::Numeric
     }
@@ -54,18 +57,98 @@ pub struct ObjectVal {
     pub properties: HashMap<String, Attr>,
 }
 
-#[RuntimeValue(RuntimeValueType::ObjectLiteralVal)]
 pub struct ObjectLiteralVal {
     pub properties: HashMap<String, Box<dyn RuntimeValue>>,
 }
 
-impl Clone for Box<dyn RuntimeValue> {
+impl<'a> Debug for ObjectLiteralVal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectLiteralVal")
+            .field("properties", &"Box<dyn RuntimeValue<'a>> map")
+            .finish()
+    }
+}
+
+impl Clone for ObjectLiteralVal {
+    fn clone(&self) -> Self {
+        Self {
+            properties: self.properties
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone_box()))
+                .collect(),
+        }
+    }
+}
+
+impl RuntimeValue for ObjectLiteralVal {
+    fn Type(&self) -> RuntimeValueType {
+        RuntimeValueType::ObjectLiteralVal
+    }
+
+    fn clone_box(&self) -> Box<dyn RuntimeValue> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &(dyn Any + 'static) {
+        self
+    }
+}
+
+
+#[RuntimeValue(RuntimeValueType::FnStructVal)]
+pub struct FuncStructVal{
+    pub parameters: HashMap<String, Attr>,
+    pub return_type: Attr,
+}
+
+pub trait Callable: Debug {
+    fn call_fn(
+        &self,
+        args: Vec<RuntimeValueServe>,
+        scope: &'static RefCell<Scope>,
+    ) -> RuntimeValueServe;
+
+    fn clone_box(&self) -> Box<dyn Callable>;
+}
+
+impl<'a> Clone for Box<dyn Callable> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl<'a, F> Callable for F
+where
+    F: Fn(Vec<RuntimeValueServe>, &'static RefCell<Scope>) -> RuntimeValueServe
+        + Clone
+        + Debug
+        + 'static,
+{
+    fn call_fn(
+        &self,
+        args: Vec<RuntimeValueServe>,
+        scope: &'static RefCell<Scope>,
+    ) -> RuntimeValueServe {
+        self(args, scope)
+    }
+
+    fn clone_box(&self) -> Box<dyn Callable> {
+        Box::new(self.clone())
+    }
+}
+
+#[RuntimeValue(RuntimeValueType::NativeFn)]
+pub struct NativeFnValue{
+    pub call: Box<dyn Callable>,
+}
+
+impl<'a> Clone for Box<dyn RuntimeValue> {
     fn clone(&self) -> Box<dyn RuntimeValue>{
         return self.clone_box()
     }
 }
 
-pub trait RuntimeValue: Debug + Any{
+pub trait RuntimeValue: Display + Debug + Any{
     fn Type(&self) -> RuntimeValueType;
     fn clone_box(&self) -> Box<dyn RuntimeValue>;
     fn as_any(&self) -> &dyn Any;

@@ -1,13 +1,15 @@
 use ion_macros::*;
 use std::any::Any;
 use std::fmt::Debug;
-use num_traits::{Num, ToPrimitive, FromPrimitive};
+use num_traits::Num;
 
-use crate::lexer::{Attr, Flags, TokenType};
+use crate::lexer::{Attr, Flags};
 
 #[derive(PartialEq)]
 pub enum NodeType{
+
     //Stmt
+
     Program,
     VarDecl,
     VarAsg,
@@ -27,6 +29,8 @@ pub enum NodeType{
     ObjectLiteral,
     PropertyLiteral,
 
+    FnStruct,
+    Param,
     CallExpr
 }
 
@@ -71,8 +75,6 @@ pub struct NumericLiteral<T: Num + Debug = f64>{
     pub value: T,
 }
 
-
-
 #[Expr(NodeType::Nil)]
 pub struct Nil{}
 
@@ -102,7 +104,18 @@ pub struct ObjectLiteral{
 pub struct MemberExpr{
     pub obj: Box<dyn Expr>,
     pub prop: Box<dyn Expr>,
-    pub computed: bool,
+}
+
+#[Expr(NodeType::Param)]
+pub struct Param{
+    pub param: String,
+    pub param_type: Attr,
+}
+
+#[Expr(NodeType::FnStruct)]
+pub struct FnStruct{
+    pub params: Vec<Param>,
+    pub ret_type: Attr,
 }
 
 #[Expr(NodeType::CallExpr)]

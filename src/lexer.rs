@@ -1,9 +1,6 @@
 use std::collections::HashMap;
-use std::io::StdoutLock;
 use once_cell::sync::Lazy;
-use std::fs;
-
-use crate::print_;
+use crate::PRINT_;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token{
@@ -19,6 +16,8 @@ pub enum TokenType{
 
     Let_k,
     Nil_k,
+    fn_struct_k,
+    ano_obj_k,
     Bool_true_t,
     Bool_false_t,
 
@@ -33,6 +32,7 @@ pub enum TokenType{
     RightCurly,
     LeftCurly,
     Dot,
+    RetType,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -51,14 +51,18 @@ pub enum Attr{
     Object,
     Complex(String),
     ComplexKind,
+    FnStruct,
 }
 
 static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert("$", TokenType::Let_k);
+    map.insert("|", TokenType::Let_k);
     map.insert("!?", TokenType::Nil_k);
+    map.insert("fn", TokenType::fn_struct_k);
+    map.insert("obj", TokenType::ano_obj_k);
     map.insert("true", TokenType::Bool_true_t);
     map.insert("false", TokenType::Bool_false_t);
+    map.insert("@", TokenType::RetType);
     map
 });
 
@@ -100,6 +104,9 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
             "object" => {
                 Some(Attr::Object)
             },
+            "function" => {
+                Some(Attr::FnStruct)
+            },
             "complex" => {
                 Some(Attr::ComplexKind)
             },
@@ -129,6 +136,9 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
             },
             "." => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::Dot});
+            },
+            "," => {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Comma});
             },
             ")" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen});
@@ -206,18 +216,14 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
                if source.len() > 0 && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace() {
                    let mut i = 0;
                    let mut ta = String::new();
-                   let mut kf = false;
                     while source.len() > i && !source[i].chars().collect::<Vec<char>>()[0].is_whitespace(){
                         ta += source[i].as_str();
                         i += 1;
-                        if let Some(tax) = keywords.get(ta.as_str()){
-                            tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
-                            source.drain(..i);
-                            kf = true;
-                            break;
-                        }
+
                     }
-                    if kf {
+                    if let Some(tax) = keywords.get(ta.as_str()){
+                        tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
+                        source.drain(..i);
                         continue;
                     }
                 }
@@ -231,13 +237,14 @@ pub unsafe fn tokenize(src: String) -> Vec<Token>{
                    continue;
                }
                
+               println!("{:?}", source[0]);
                panic!("Token not found");
             }
         }
     }
     tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
 
-    if print_{
+    if PRINT_{
         println!("\n-------------------------- Lexer -------------------------------\n");
         println!("{:?}\n", tokens);
         println!("-------------------------- Abstract Syntax Tree -------------------------------\n");

@@ -1,1 +1,1 @@
-object[property]()
+a().b;

@@ -1,7 +1,5 @@
-#![feature(trait_upcasting)]
-
 use std::cell::RefCell;
-use std::{fs, panic};
+use std::fs;
 mod lexer;
 mod parser;
 mod ast;
@@ -9,36 +7,28 @@ mod ast;
 mod runtime;
 use runtime::*;
 
-use crate::scopes::Scope;
-use crate::values::{BooleanVal, NilVal, NumericVal};
+use crate::scopes::init;
 
 fn main() {
     let source = fs::read_to_string("main.io")
         .expect("Failed to read file 'main.io'");
 
     unsafe {
-        let mut env = RefCell::new(Scope::new(scopes::Parent::Nil));
-
-        // Stage 1: Show Original Source
-        if print_ {
+        if PRINT_ {
             println!("\n-------------------------- Original -------------------------------\n");
             println!("{}\n", source);
         }
 
-        // Stage 2: Parse to AST
-        let output = parser::prodAST(source.clone());
-        if print_ {
+        let output = parser::prod_ast(source.clone());
+        if PRINT_ {
             println!("{:?}\n", output);
         }
 
-        // Stage 3: Evaluate
-        let evaluated = interpreter::evaluate(Box::new(output.clone()), &env);
-        if print_ {
+        let evaluated = interpreter::evaluate(Box::new(output.clone()), Box::leak(Box::new(RefCell::new(init()))));
+        if PRINT_ {
             println!("-------------------------- Runtime -------------------------------\n");
             println!("Runtime Value Debug: {:?}\n", evaluated);
-        } else {
-            println!("{:?}\n", evaluated);
-        }
+        } 
     }
 }
 
