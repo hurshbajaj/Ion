@@ -71,5 +71,6 @@ As a side note, this project is simply a scaffold, although with an extensive de
 
 The base that has been implemented however is as good as it gets at this level and all realistic edge cases have been taken care of so no need for you to worry as far as the scaffold is concerned :D Have fun!  
 <br>
+If you don't wish to see the debug logs / how Ion breaks down and safely parses wtv you throw at it, go into src/runtime/mod.rs and set the PRINT_ variable to true...
 **Thank you!**
 

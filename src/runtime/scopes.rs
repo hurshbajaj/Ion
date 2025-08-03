@@ -96,8 +96,5 @@ fn log_fn<'a>(args: Vec<RuntimeValueServe>, _scope: &'static RefCell<Scope>) -> 
 }
 
 // finish user def fns
-// refine tests
-// recheck makefile
 // make repl
-// check .io
 // hc

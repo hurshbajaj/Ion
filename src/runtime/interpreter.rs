@@ -367,8 +367,12 @@ fn extract_as_i64(val: RuntimeValueServe) -> i64 {
             let any = v.as_any();
             extract_numeric!(any, i64, [u8, u16, u32, u64, i8, i16, i32, i64]);
             panic!("Expected integer-compatible value for op");
+        },
+        RuntimeValueServe::Ref(v) => {
+            let any = v.as_any();
+            extract_numeric!(any, i64, [u8, u16, u32, u64, i8, i16, i32, i64]);
+            panic!("Expected integer-compatible value for op");
         }
-        _ => panic!("Interpreter Error: Numeric value expression cannot be Ref"),
     }
 }
 fn extract_as_f64(val: RuntimeValueServe) -> f64 {
@@ -377,8 +381,13 @@ fn extract_as_f64(val: RuntimeValueServe) -> f64 {
             let any = v.as_any();
             extract_numeric!(any, f64, [f64, f32, u8, u16, u32, u64, i8, i16, i32, i64]);
             panic!("Expected numeric value for f64 cast");
+        },
+        RuntimeValueServe::Ref(v) => {
+            let any = v.as_any();
+            extract_numeric!(any, f64, [f64, f32, u8, u16, u32, u64, i8, i16, i32, i64]);
+            panic!("Expected numeric value for f64 cast");
         }
-        _ => panic!("Interpreter Error: Numeric value expression cannot be Ref"),
+
     }
 }
 fn is_float(val: &RuntimeValueServe) -> bool {
