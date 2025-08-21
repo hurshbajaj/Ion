@@ -1,4 +1,4 @@
-## :D Intro
+## 😃 Intro
 
 Ion is a functional, statically typed - Interpreted - programming language written from the ground up in Rust;  
 Offering Zero-Cost Abstractions along with Numeric Type Minimization with ease of workflow in an attempt to give you all the perks of Rust's type system but without any extra effort on YOUR part - It aims to simulate Rust's Borrow Checker Ideology and Safe Handling with its own variation for the same, along with a powerful and well adjusted | Recursive Descent LL (1) Parser |. Fast, Practical, Easy to read! ION.
