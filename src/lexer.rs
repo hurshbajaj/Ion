@@ -17,9 +17,10 @@ pub enum TokenType{
     Let_k,
     Nil_k,
     fn_struct_k,
-    ano_obj_k,
     Bool_true_t,
     Bool_false_t,
+    arr_struct_k,
+    obj_struct_k,
 
     Flag(Flags),
 
@@ -51,17 +52,18 @@ pub enum Attr{
     Object,
     Complex(String),
     ComplexKind,
-    FnStruct,
+    Array,
 }
 
 static keywords: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
     let mut map = HashMap::new();
     map.insert("|", TokenType::Let_k);
-    map.insert("!?", TokenType::Nil_k);
+    map.insert("nil", TokenType::Nil_k);
     map.insert("fn", TokenType::fn_struct_k);
-    map.insert("obj", TokenType::ano_obj_k);
     map.insert("true", TokenType::Bool_true_t);
     map.insert("false", TokenType::Bool_false_t);
+    map.insert("obj", TokenType::obj_struct_k);
+    map.insert("arr", TokenType::arr_struct_k);
     map.insert("@", TokenType::RetType);
     map
 });
@@ -104,9 +106,9 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
             "object" => {
                 Some(Attr::Object)
             },
-            "function" => {
-                Some(Attr::FnStruct)
-            },
+            "array" => {
+                Some(Attr::Array)
+            }
             "complex" => {
                 Some(Attr::ComplexKind)
             },
@@ -119,7 +121,8 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
     }
 }
 
-pub unsafe fn tokenize(src: String) -> Vec<Token>{
+pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
+    let src = filter_comments(src_commented);
     let mut tokens: Vec<Token> = vec![];
     let mut source: Vec<String> = src.chars().map(|x| x.to_string()).collect();
 
@@ -273,4 +276,24 @@ fn parse_attr(s: &str) -> Option<&str> {
 
 fn is_identifier(c: &str) -> bool {
     return c.chars().collect::<Vec<char>>()[0].is_alphabetic() || c.chars().collect::<Vec<char>>()[0] == '_';
+}
+
+fn filter_comments(src: String) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = src.chars().collect();
+    let mut i = 0;
+    
+    while i < chars.len() {
+        if i < chars.len() - 1 && chars[i] == '/' && chars[i + 1] == '/' {
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+            i += 1;
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+    
+    result
 }

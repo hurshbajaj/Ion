@@ -28,6 +28,15 @@ impl fmt::Display for ObjectVal {
     }
 }
 
+impl fmt::Display for ArrayVal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.complex.clone() {
+            None => write!(f, "Array(Type: {:?}, Length: {})", self.attr , self.length),
+            Some(i) =>  write!(f, "Array(Type: Complex({}),  Length: {})", &(i.symbol), self.length)
+        }
+    }
+}
+
 impl fmt::Display for NativeFnValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<native fn>")

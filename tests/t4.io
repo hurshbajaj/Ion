@@ -1,3 +1,3 @@
 | new_var <asg> <structure: function> fn-call (my_param: numeric;);
 
-new_var
+log(new_var);

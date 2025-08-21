@@ -1,5 +1,7 @@
-| var <asg> <structure: numeric> <const> 1;
 
-| var_two <asg> <structure: numeric> -(1 + 2);
+| dummy <asg> <structure: array> arr [ numeric ; nil ; 0 ;];
+| arr_struct <asg> <structure: array> arr [ complex ; dummy ; 1 ;];
+| my_arr <asg> <structure: complex> <complex: arr_struct> [ [] ];
+my_arr; 
 
-var_two;
+// hc / strings / if / while / fn complete / array membr expr tomr

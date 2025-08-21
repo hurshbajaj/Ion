@@ -24,10 +24,12 @@ pub enum NodeType{
 
     Object,
     MemberExpr,
+    Array,
 
     Property,
     ObjectLiteral,
     PropertyLiteral,
+    ArrayLiteral,
 
     FnStruct,
     Param,
@@ -87,6 +89,18 @@ pub struct Property{
 #[Expr(NodeType::Object)]
 pub struct Object{
     pub properties: Vec<Property>,
+}
+
+#[Expr(NodeType::Array)]
+pub struct Array{
+    pub attr: Attr,
+    pub complex_attr: Option<String>,
+    pub length: usize,
+}
+
+#[Expr(NodeType::ArrayLiteral)]
+pub struct ArrayLiteral{
+    pub entries: Vec<Box<dyn Expr>>,
 }
 
 #[Expr(NodeType::PropertyLiteral)]

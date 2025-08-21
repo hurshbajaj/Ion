@@ -4,6 +4,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use crate::ast::Identifier;
 use crate::interpreter::RuntimeValueServe;
 use crate::lexer::Attr;
 use crate::scopes::Scope;
@@ -16,6 +17,8 @@ pub enum RuntimeValueType {
     Boolean,
     ObjectVal,
     ObjectLiteralVal,
+    ArrayVal,
+    ArrayLiteralVal,
     StmtExec,
     FnStructVal,
     NativeFn
@@ -52,6 +55,19 @@ impl<'a, T: Num + Debug + Display + Clone + 'static> RuntimeValue for NumericVal
 pub struct BooleanVal{
     pub val: bool,
 }
+
+#[RuntimeValue(RuntimeValueType::ArrayVal)]
+pub struct ArrayVal{
+    pub attr: Attr,
+    pub complex: Option<Identifier>,
+    pub length: usize,
+}
+
+#[RuntimeValue(RuntimeValueType::ArrayVal)]
+pub struct ArrayLiteralVal{
+    pub entries: Vec<Box<dyn RuntimeValue>>,
+}
+
 #[RuntimeValue(RuntimeValueType::ObjectVal)]
 pub struct ObjectVal {
     pub properties: HashMap<String, Attr>,

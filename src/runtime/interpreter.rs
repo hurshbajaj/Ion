@@ -1,10 +1,12 @@
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 
-use crate::ast::{self, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
+use crate::ast::{self, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
 use crate::lexer::Attr;
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, FuncStructVal, NativeFnValue, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
+
+use super::values::{ArrayLiteralVal, ArrayVal};
 
 #[derive(Debug)]
 pub enum RuntimeValueServe {
@@ -69,6 +71,12 @@ pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> R
         ast::NodeType::ObjectLiteral => {
             eval_obj_literal_expr(astnode.as_any().downcast_ref::<ObjectLiteral>().unwrap(), scope)
         },
+        ast::NodeType::Array => {
+            eval_array_expr(astnode.as_any().downcast_ref::<Array>().unwrap(), scope)
+        },
+        ast::NodeType::ArrayLiteral => {
+            eval_array_literal_expr(astnode.as_any().downcast_ref::<ArrayLiteral>().unwrap(), scope)
+        }
         ast::NodeType::FnStruct => {
             eval_fn_struct(astnode.as_any().downcast_ref::<FnStruct>().unwrap(), scope)
         },
@@ -89,8 +97,52 @@ pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> R
     }
 }
 
-fn eval_membr_expr(unwrap: &MemberExpr , scope: &'static RefCell<Scope>) -> RuntimeValueServe {
-    evaluate(unwrap.clone().prop, scope) 
+fn eval_array_literal_expr(unwrap: &ArrayLiteral, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    let mut arr = ArrayLiteralVal { entries: vec![] };
+    for entry in &unwrap.entries {
+        let val = evaluate(  entry.clone() , scope); 
+        if let RuntimeValueServe::Owned(v) = val{
+            arr.entries.push(v);
+        }else if let RuntimeValueServe::Ref(v) = val{
+            arr.entries.push(v.clone_box());
+        }
+
+    }
+    RuntimeValueServe::Owned(Box::new(arr))
+}
+
+fn eval_array_expr(unwrap: &Array, scope: &RefCell<Scope>) -> RuntimeValueServe {
+    let mut arr = match &unwrap.complex_attr {
+        Some(str) => {
+            ArrayVal { attr: unwrap.attr.clone(), complex: Some(Identifier{symbol: str.to_string()}), length: unwrap.length }
+        },
+        None => ArrayVal { attr: unwrap.attr.clone(), complex: None, length: unwrap.length }
+    };
+    RuntimeValueServe::Owned(Box::new(arr))
+}
+
+fn eval_membr_expr(unwrap: &MemberExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    let obj_eval = evaluate(unwrap.obj.clone(), scope);
+    let prop_name = &unwrap.prop.as_any().downcast_ref::<Identifier>().unwrap().symbol;
+
+    match obj_eval {
+        RuntimeValueServe::Ref(obj_ref) => {
+            let inner_ref = Ref::map(obj_ref, |obj_box| {
+                let obj = obj_box.as_any().downcast_ref::<ObjectLiteralVal>().unwrap();
+                obj.properties.get(prop_name)
+                    .expect(&format!("Property '{}' not found", prop_name))
+            });
+            RuntimeValueServe::Ref(inner_ref)
+        },
+        RuntimeValueServe::Owned(obj_val) => {
+            let obj_val = unwrap_runtime_value_serve(RuntimeValueServe::Owned(obj_val));
+            let obj = obj_val.as_any().downcast_ref::<ObjectLiteralVal>().unwrap();
+            let prop_val = obj.properties.get(prop_name)
+                .unwrap_or_else(|| panic!("Property '{}' not found", prop_name))
+                .clone_box();
+            RuntimeValueServe::Owned(prop_val)
+        }
+    }
 }
 
 fn eval_call_expr<'a>(unwrap: &CallExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
@@ -179,6 +231,9 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Runt
 }
 
 pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    if unwrap.identifier == "_"{
+        panic!("Token (_) cannot be used as an identifier.");
+    }
     let evaluated = evaluate(unwrap.value.clone(), scope);
 
     let val_to_store = match evaluated {
@@ -460,8 +515,8 @@ pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, com
             if value.as_any().downcast_ref::<ObjectVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
             else {panic!("Incorrect Type Assignement");}
         },
-        Attr::FnStruct => {
-            if value.as_any().downcast_ref::<FuncStructVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
+        Attr::Array => {
+            if value.as_any().downcast_ref::<ArrayVal>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some(){}
             else {panic!("Incorrect Type Assignement");}
         },
         Attr::ComplexKind => {
@@ -475,7 +530,6 @@ pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, com
 }
 
 //openfull
-
 macro_rules! is_numeric_val {
     ($value:expr, $( $t:ty ),*) => {
         $( $value.as_any().downcast_ref::<NumericVal<$t>>().is_some() )||*
@@ -492,6 +546,9 @@ fn is_numeric_val(value: &Box<dyn RuntimeValue>) -> bool {
 }
 
 fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>, scope: &'static RefCell<Scope>) {
+    if ideal.symbol == "anonymous" {
+        return;
+    }
     let lookup = eval_identifier(&ideal, scope);
     if let RuntimeValueServe::Ref(lookup_unwrap) = lookup{
        if lookup_unwrap.as_any().downcast_ref::<ObjectVal>().is_some(){
@@ -516,7 +573,16 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
                     panic!("Extra Fields")
                 }
             }
-
+       }
+       if lookup_unwrap.as_any().downcast_ref::<ArrayVal>().is_some(){
+            let lookup_refined = lookup_unwrap.as_any().downcast_ref::<ArrayVal>().unwrap();
+            let v_refined = value.as_any().downcast_ref::<ArrayLiteralVal>().unwrap();
+            if v_refined.entries.len() != lookup_refined.length {
+                panic!("The size of an array must be strictly equal to that of its complex.");
+            }
+            for entry in v_refined.entries.clone() {
+                static_type_check(entry.clone_box(), lookup_refined.attr.clone(), lookup_refined.complex.clone(), scope);
+            }
        }
     }else{
         panic!("I honestly dont get paid enough for this");

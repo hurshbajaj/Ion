@@ -1,3 +1,3 @@
-| FNvar <asg> <structure: function> fn (param: numeric;) @ numeric;
-FNvar
+fn FNvar (param: numeric;) @ numeric {};
+log(FNvar);
 

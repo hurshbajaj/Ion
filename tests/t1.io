@@ -6,6 +6,6 @@ var_two <asg> var_two + 1;
 
 | nil_var <structure: numeric>; 
 
-var_two + nil_var;
+log( var_two + nil_var );
 
 

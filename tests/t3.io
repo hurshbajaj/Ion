@@ -1,2 +1,2 @@
-$num_one <asg><structure:numeric> 2;
-1.0+2
+| num_one <asg><structure:numeric> 2;
+log(1.0+2);

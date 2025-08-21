@@ -42,7 +42,7 @@ impl Scope{
         }
         match &self.parent {
             Parent::Nil => {
-                panic!("Variable doesn't exist in the current scope");
+                panic!("Variable [{}] doesn't exist in the current scope!", varname.clone());
             },
             Parent::Scope(s) => {
                 return s.resolve(varname);

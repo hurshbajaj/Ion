@@ -97,7 +97,7 @@ unsafe fn parse_object_literal_expr() -> Box<dyn Expr> {
    if TOKENS[0].value_type != TokenType::Identifier || TOKENS[1].value_type != TokenType::LeftCurly{
         return parse_object_expr();
    }
-   TOKENS.drain(..2);
+   TOKENS.remove(0);
    let mut props = vec![];
    while TOKENS[0].value_type == TokenType::Identifier {
         let key = TOKENS.remove(0).value;
@@ -111,9 +111,10 @@ unsafe fn parse_object_literal_expr() -> Box<dyn Expr> {
 }
 
 unsafe fn parse_object_expr() -> Box<dyn Expr> {
-   if TOKENS[0].value_type != TokenType::LeftCurly{
-        return parse_additive_expr();
+   if TOKENS[0].value_type != TokenType::obj_struct_k{
+        return parse_array_literal_expr();
    }
+   TOKENS.remove(0);
    TOKENS.remove(0);
    let mut props = vec![];
    while TOKENS[0].value_type == TokenType::Identifier {
@@ -127,6 +128,43 @@ unsafe fn parse_object_expr() -> Box<dyn Expr> {
    }
    TOKENS.remove(0);
    return Box::new(Object{properties: props})
+}
+
+unsafe fn parse_array_literal_expr() -> Box<dyn Expr> {
+   if TOKENS[0].value_type != TokenType::LeftBrace{
+        return parse_array_expr();
+   }
+   TOKENS.remove(0);
+   let mut entries = vec![];
+   while TOKENS[0].value_type != TokenType::RightBrace {
+       entries.push(parse_expr());
+       if TOKENS[0].value_type == TokenType::RightBrace {break;};
+       TOKENS.remove(0);
+   }
+   TOKENS.remove(0);
+   return Box::new(ArrayLiteral{entries})
+}
+
+
+unsafe fn parse_array_expr() -> Box<dyn Expr> { // [numeric ; nil ; 10;]
+   if TOKENS[0].value_type != TokenType::arr_struct_k{
+        return parse_additive_expr();
+   }
+   TOKENS.remove(0);
+   TOKENS.remove(0);
+   let attr_shell = TOKENS.remove(0);
+   let attr = get_attr(Some(attr_shell.value.as_str()));
+   TOKENS.remove(0);
+   let complex_attr_shell = TOKENS.remove(0);
+   let mut complex_attr = None;
+   if complex_attr_shell.value_type != TokenType::Nil_k{
+        complex_attr = Some(complex_attr_shell.value);
+   }
+   TOKENS.remove(0);
+   let length = usize::from_str( &(TOKENS.remove(0).value));
+   TOKENS.remove(0);
+   TOKENS.remove(0);
+   return Box::new(Array{attr: attr.unwrap(), complex_attr, length: length.unwrap()});
 }
 
 unsafe fn parse_fn_struct() -> Box<dyn Expr> {
@@ -209,7 +247,9 @@ unsafe fn parse_mem_expr() -> Box<dyn Expr> {
     return obj;
 }
 */
-
+unsafe fn parse_call_array_mem_expr() -> Box<dyn Expr>{
+    todo!();
+}
 unsafe fn parse_call_mem_expr() -> Box<dyn Expr>{
     let member = parse_mem_expr(parse_prim_expr());
     if TOKENS[0].value_type == TokenType::LeftParen {

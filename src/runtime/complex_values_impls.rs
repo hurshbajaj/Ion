@@ -15,6 +15,19 @@ impl fmt::Display for ObjectLiteralVal {
     }
 }
 
+impl fmt::Display for ArrayLiteralVal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{ ")?;
+        for (i, v) in self.entries.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{:?}", v)?;
+        }
+        write!(f, " }}")
+    }
+}
+
 impl fmt::Display for FuncStructVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let params: Vec<String> = self.parameters.keys().cloned().collect();
