@@ -53,8 +53,10 @@ Editing it however so you want!
 This project is written entirely by me, including this message —  
 
 with AI support being limited to light debugging (outside the project whilst testing nodes separately) (NOT within the project itself.), conceptual understanding for me whilst writing this and this message's MD formatting inspo (and inspo alone.);
-(Yes... the emojis used are intentional)
-<br>
+(Yes... the emojis used are intentional)  
+
+<hr>
+
 If you wish to see the debug logs / how Ion breaks down and safely parses wtv you throw at it, go into src/runtime/mod.rs and set the PRINT_ variable to true...
 **Thank you!**
 
