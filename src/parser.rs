@@ -31,7 +31,7 @@ unsafe fn parse_to_stmt() -> Box<dyn Stmt>{
             return rt;
         },
         TokenType::Identifier => {
-            if TOKENS[1].value_type == TokenType::Flag(Flags::Assign_f) {
+            if TOKENS[1].value_type == TokenType::Flag(Flags::Assign_f) || (TOKENS[1].value_type == TokenType::Dot && TOKENS[3].value_type == TokenType::Flag(Flags::Assign_f)){
                 let rt = parse_var_asg();
                 end_stmt();
                 return rt;
@@ -94,7 +94,7 @@ unsafe fn parse_expr() -> Box<dyn Expr>{
 }
 
 unsafe fn parse_object_literal_expr() -> Box<dyn Expr> {
-   if TOKENS[0].value_type != TokenType::Identifier || TOKENS[1].value_type != TokenType::LeftCurly{
+   if TOKENS[0].value_type != TokenType::LeftCurly{
         return parse_object_expr();
    }
    TOKENS.remove(0);
@@ -223,30 +223,6 @@ unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
     left
 }
 
-/*
-unsafe fn parse_call_mem_expr() -> Box<dyn Expr>{
-    let member = parse_mem_expr();
-    if TOKENS[0].value_type == TokenType::LeftParen {
-        return parse_call_expr(member);
-    }
-    return member;
-}
-
-unsafe fn parse_mem_expr() -> Box<dyn Expr> {
-    let mut obj = parse_prim_expr();
-    while TOKENS[0].value_type == TokenType::Dot {
-        TOKENS.remove(0);
-        let prop: Box<dyn Expr>;
-        prop = parse_prim_expr();
-        if !prop.as_any().downcast_ref::<Identifier>().is_some() {
-            panic!("Right hand side of the dot operator must be an Identifier");
-        }
-        obj = Box::new(MemberExpr{obj, prop});
-    }
-
-    return obj;
-}
-*/
 unsafe fn parse_call_array_mem_expr() -> Box<dyn Expr>{
     todo!();
 }
@@ -314,6 +290,9 @@ unsafe fn parse_prim_expr() -> Box<dyn Expr> {
     match TkType.value_type {
         TokenType::Identifier => {
             Box::new(Identifier { symbol: TOKENS.remove(0).value })
+        }
+       TokenType::String => {
+            Box::new(Str{ content: TOKENS.remove(0).value })
         }
         TokenType::Number => {
             Box::new(NumericLiteral::<f64> {

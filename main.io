@@ -1,7 +1,8 @@
+| x <asg> <structure: complex> <complex: anonymous>  
+{
+	x: 1;
+};
+x.x <asg> 2;
+log(x);
 
-| dummy <asg> <structure: array> arr [ numeric ; nil ; 0 ;];
-| arr_struct <asg> <structure: array> arr [ complex ; dummy ; 1 ;];
-| my_arr <asg> <structure: complex> <complex: arr_struct> [ [] ];
-my_arr; 
-
-// hc / strings / if / while / fn complete / array membr expr tomr
+// hc / expect / strings / if / while / fn complete / array membr expr 

@@ -17,6 +17,7 @@ pub enum NodeType{
     //Expr
 
     NumericLiteralNode,
+    String,
     Identifier,
     BinOp,
     Nil,
@@ -70,6 +71,11 @@ pub struct BinExpr {
 #[Expr(NodeType::Identifier)]
 pub struct Identifier{
     pub symbol: String,
+}
+
+#[Expr(NodeType::String)]
+pub struct Str{
+    pub content: String,
 }
 
 #[Expr(NodeType::NumericLiteralNode)]

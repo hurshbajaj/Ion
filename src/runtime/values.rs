@@ -14,6 +14,7 @@ use crate::values_impls;
 pub enum RuntimeValueType {
     Nil,
     Numeric,
+    String,
     Boolean,
     ObjectVal,
     ObjectLiteralVal,
@@ -56,6 +57,11 @@ pub struct BooleanVal{
     pub val: bool,
 }
 
+#[RuntimeValue(RuntimeValueType::String)]
+pub struct StrLiteral{
+    pub content: String,
+}
+
 #[RuntimeValue(RuntimeValueType::ArrayVal)]
 pub struct ArrayVal{
     pub attr: Attr,
@@ -65,7 +71,7 @@ pub struct ArrayVal{
 
 #[RuntimeValue(RuntimeValueType::ArrayVal)]
 pub struct ArrayLiteralVal{
-    pub entries: Vec<Box<dyn RuntimeValue>>,
+    pub entries: Vec<RuntimeValueServe>,
 }
 
 #[RuntimeValue(RuntimeValueType::ObjectVal)]
@@ -74,7 +80,7 @@ pub struct ObjectVal {
 }
 
 pub struct ObjectLiteralVal {
-    pub properties: HashMap<String, Box<dyn RuntimeValue>>,
+    pub properties: HashMap<String, RuntimeValueServe>,
 }
 
 impl<'a> Debug for ObjectLiteralVal {
@@ -90,7 +96,7 @@ impl Clone for ObjectLiteralVal {
         Self {
             properties: self.properties
                 .iter()
-                .map(|(k, v)| (k.clone(), v.clone_box()))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
         }
     }

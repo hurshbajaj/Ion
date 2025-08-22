@@ -11,6 +11,7 @@ pub struct Token{
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenType{
     Number,
+    String,
     BinOp,
     Identifier,
 
@@ -48,6 +49,7 @@ pub enum Flags{
 pub enum Attr{
     //Types
     Numeric,
+    String,
     Bool,
     Object,
     Complex(String),
@@ -99,6 +101,9 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
         match attr {
             "numeric" => {
                 Some(Attr::Numeric)
+            },
+            "string" => {
+                Some(Attr::String)
             },
             "bool" => {
                 Some(Attr::Bool)
@@ -168,8 +173,6 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                     continue;
                 }
 
-                let mut ta = String::new();
-
                 if source.len() > 0 && source[0].chars().next().unwrap().is_numeric() {
                     let mut ta = String::new();
                     let mut i = 0;
@@ -231,7 +234,18 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                     }
                 }
 
+               if source[0] == "\"" {
+                   let mut ta = String::new();
+                   source.remove(0);
+                   while source[0] != "\"" {
+                        ta += source.remove(0).as_str();
+                   }
+                   source.remove(0);
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::String});
+                }
+
                if source.len() > 0 && is_identifier(source[0].as_str()) {
+                   let mut ta = String::new();
                    let mut isk = false;
                    while source.len() > 0 && is_identifier(source[0].as_str()){
                        ta += source.remove(0).as_str();

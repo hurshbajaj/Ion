@@ -1,8 +1,9 @@
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::ast::{self, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
-use crate::lexer::Attr;
+use crate::lexer::{Attr, Flags};
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, FuncStructVal, NativeFnValue, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
@@ -11,14 +12,29 @@ use super::values::{ArrayLiteralVal, ArrayVal};
 #[derive(Debug)]
 pub enum RuntimeValueServe {
     Owned(Box<dyn RuntimeValue>),
-    Ref(Ref<'static, Box<dyn RuntimeValue>>),
+    Ref(Identifier),
+}
+
+impl fmt::Display for RuntimeValueServe {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RuntimeValueServe::Owned(value) => {
+                // Use the existing Display implementation of the boxed value
+                write!(f, "{}", value)
+            },
+            RuntimeValueServe::Ref(identifier) => {
+                // Print just the symbol field from Identifier
+                write!(f, "{}", identifier.symbol)
+            },
+        }
+    }
 }
 
 impl Clone for RuntimeValueServe {
     fn clone(&self) -> Self {
         match self {
             RuntimeValueServe::Owned(b) => RuntimeValueServe::Owned(b.clone()),
-            RuntimeValueServe::Ref(r) => RuntimeValueServe::Owned(r.clone_box()), 
+            RuntimeValueServe::Ref(r) => RuntimeValueServe::Ref(r.clone()), 
         }
     }
 }
@@ -101,10 +117,10 @@ fn eval_array_literal_expr(unwrap: &ArrayLiteral, scope: &'static RefCell<Scope>
     let mut arr = ArrayLiteralVal { entries: vec![] };
     for entry in &unwrap.entries {
         let val = evaluate(  entry.clone() , scope); 
-        if let RuntimeValueServe::Owned(v) = val{
-            arr.entries.push(v);
-        }else if let RuntimeValueServe::Ref(v) = val{
-            arr.entries.push(v.clone_box());
+        if let RuntimeValueServe::Owned(_) = val.clone(){
+            arr.entries.push(val.clone());
+        }else if let RuntimeValueServe::Ref(_) = val.clone(){
+            arr.entries.push(val);
         }
 
     }
@@ -112,7 +128,7 @@ fn eval_array_literal_expr(unwrap: &ArrayLiteral, scope: &'static RefCell<Scope>
 }
 
 fn eval_array_expr(unwrap: &Array, scope: &RefCell<Scope>) -> RuntimeValueServe {
-    let mut arr = match &unwrap.complex_attr {
+    let arr = match &unwrap.complex_attr {
         Some(str) => {
             ArrayVal { attr: unwrap.attr.clone(), complex: Some(Identifier{symbol: str.to_string()}), length: unwrap.length }
         },
@@ -126,28 +142,23 @@ fn eval_membr_expr(unwrap: &MemberExpr, scope: &'static RefCell<Scope>) -> Runti
     let prop_name = &unwrap.prop.as_any().downcast_ref::<Identifier>().unwrap().symbol;
 
     match obj_eval {
-        RuntimeValueServe::Ref(obj_ref) => {
-            let inner_ref = Ref::map(obj_ref, |obj_box| {
-                let obj = obj_box.as_any().downcast_ref::<ObjectLiteralVal>().unwrap();
-                obj.properties.get(prop_name)
-                    .expect(&format!("Property '{}' not found", prop_name))
-            });
-            RuntimeValueServe::Ref(inner_ref)
-        },
         RuntimeValueServe::Owned(obj_val) => {
-            let obj_val = unwrap_runtime_value_serve(RuntimeValueServe::Owned(obj_val));
+            let obj_val = unwrap_runtime_value_serve(RuntimeValueServe::Owned(obj_val), scope);
             let obj = obj_val.as_any().downcast_ref::<ObjectLiteralVal>().unwrap();
             let prop_val = obj.properties.get(prop_name)
                 .unwrap_or_else(|| panic!("Property '{}' not found", prop_name))
-                .clone_box();
-            RuntimeValueServe::Owned(prop_val)
-        }
+                .clone();
+            prop_val
+        },
+        _ => {
+            panic!("Cannot work with raw REF in runtime...");
+        }   
     }
 }
 
 fn eval_call_expr<'a>(unwrap: &CallExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let args = unwrap.args.iter().map(|a| evaluate(a.clone(), scope) ).collect();
-    let func = unwrap_runtime_value_serve( evaluate(unwrap.call_to.clone() , scope) );
+    let func = unwrap_runtime_value_serve( evaluate(unwrap.call_to.clone() , scope), scope);
 
     if func.Type() == RuntimeValueType::NativeFn {
         let result = func.as_any().downcast_ref::<NativeFnValue>().unwrap().call.call_fn(args, scope);
@@ -160,13 +171,15 @@ fn eval_call_expr<'a>(unwrap: &CallExpr, scope: &'static RefCell<Scope>) -> Runt
 fn eval_obj_literal_expr<'a>(unwrap: &ObjectLiteral, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let mut object = ObjectLiteralVal { properties: HashMap::new() };
     for prop in &unwrap.properties {
-        let val = evaluate(  prop.value.clone() , scope); 
-        if let RuntimeValueServe::Owned(v) = val{
-            object.properties.insert(prop.key.clone(), v);
-        }else if let RuntimeValueServe::Ref(v) = val{
-            object.properties.insert(prop.key.clone(), v.clone_box());
-        }
+        let ts =
+            match prop.value.kind() {
+                ast::NodeType::Identifier => {
+                    RuntimeValueServe::Ref(prop.value.as_any().downcast_ref::<Identifier>().unwrap().clone())
+                },
+                _ =>  evaluate(prop.value.clone(), scope)
+            };
 
+            object.properties.insert(prop.key.clone(), ts);
     }
     RuntimeValueServe::Owned(Box::new(object))
 }
@@ -193,19 +206,35 @@ fn eval_fn_struct<'a>(unwrap: &FnStruct, _scope: &'static RefCell<Scope>) -> Run
 }
 
 pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
-    if unwrap.lhs.kind() != NodeType::Identifier {
-        panic!("Can't assign value to parsed Expression");
+    match unwrap.lhs.kind() {
+        NodeType::Identifier => {
+            var_asg_ident(unwrap, scope)
+        },
+        NodeType::MemberExpr => {
+            var_asg_membr_expr(unwrap, scope)
+        }
+        _ => {
+            panic!("Can't assign value to the same.");
+        }
     }
+}
 
-    let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap();
+pub fn var_asg_ident(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe{
+    let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap(); 
+    let ts =
+    match unwrap.rhs.clone().kind() {
+        ast::NodeType::Identifier => {
+            RuntimeValueServe::Ref(unwrap.rhs.clone().as_any().downcast_ref::<Identifier>().unwrap().clone())
+        },
+       _ =>  evaluate(unwrap.rhs.clone(), scope)
+    };
     let wrapped_rhs = evaluate(unwrap.rhs.clone(), scope);
-
-    let refined_rhs = unwrap_runtime_value_serve(wrapped_rhs);
+    let refined_rhs = unwrap_runtime_value_serve(wrapped_rhs.clone(), scope);
 
     let scope_refined = scope.borrow().clone();
     let _ = scope_refined.resolve(&lhs_refined.symbol);
 
-    let f_flag = scope_refined.loopup_flags(lhs_refined.symbol.clone()).iter().find_map(|token_type| {
+    let f_flag = scope_refined.lookup_flags(lhs_refined.symbol.clone()).iter().find_map(|token_type| {
         if let crate::lexer::Flags::Struct_f(attr) = token_type {
             Some(attr.clone())
         } else {
@@ -213,7 +242,7 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Runt
         }
     }).unwrap_or_else(|| panic!("Missing flag <structure> not found in Associated Variable Flags"));
 
-    let complex_t: Option<Identifier> = scope_refined.loopup_flags(lhs_refined.symbol.clone()).iter().find_map(|token_type| {
+    let complex_t: Option<Identifier> = scope_refined.lookup_flags(lhs_refined.symbol.clone()).iter().find_map(|token_type| {
         if let crate::lexer::Flags::Complex_f(Attr::Complex(attr)) = token_type {
             Some(Identifier { symbol: attr.clone() })
         } else {
@@ -225,21 +254,65 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Runt
 
     scope
         .borrow_mut()
-        .var_assign(lhs_refined.symbol.clone(), refined_rhs);
+        .var_assign(lhs_refined.symbol.clone(), ts);
+
+    RuntimeValueServe::Owned(Box::new(StmtExecS {}))
+}
+
+pub fn var_asg_membr_expr(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe{
+    let lhs_refined = unwrap.lhs.as_any().downcast_ref::<MemberExpr>().unwrap(); 
+    let obj_as_ident = lhs_refined.obj.as_any().downcast_ref::<Identifier>().unwrap().symbol.clone();
+
+    let new_obj_shell = scope.borrow().clone().lookup(obj_as_ident.clone());
+    let new_obj_weak = match new_obj_shell {
+        RuntimeValueServe::Owned(v) => v,
+        _ => {panic!()}
+    };
+    let mut new_obj= new_obj_weak.clone().as_any().downcast_ref::<ObjectLiteralVal>().unwrap().clone();
+    let prop_mut = new_obj.properties.get_mut(&(lhs_refined.prop.as_any().downcast_ref::<Identifier>().unwrap().symbol.clone())).expect("Property doesn't exist.");
+
+    match unwrap.rhs.clone().kind() {
+        ast::NodeType::Identifier => {
+            *prop_mut = RuntimeValueServe::Ref(unwrap.rhs.clone().as_any().downcast_ref::<Identifier>().unwrap().clone());
+        },
+       _ =>  {
+           *prop_mut = evaluate(unwrap.rhs.clone(), scope);
+       }
+    }
+
+    let scope_refined = scope.borrow().clone();
+    let _ = scope_refined.resolve(&obj_as_ident);
+
+    let complex_t: Option<Identifier> = scope_refined.lookup_flags(obj_as_ident.clone()).iter().find_map(|token_type| {
+        if let crate::lexer::Flags::Complex_f(Attr::Complex(attr)) = token_type {
+            Some(Identifier { symbol: attr.clone() })
+        } else {
+            None
+        }
+    });
+
+    static_type_check(Box::new(new_obj.clone()), Attr::ComplexKind, complex_t, scope);
+
+    scope
+        .borrow_mut()
+        .var_assign(obj_as_ident.clone(), RuntimeValueServe::Owned(Box::new(new_obj.clone())));
 
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
 
 pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    let ts =
+    match unwrap.value.clone().kind() {
+        ast::NodeType::Identifier => {
+            RuntimeValueServe::Ref(unwrap.value.clone().as_any().downcast_ref::<Identifier>().unwrap().clone())
+        },
+       _ =>  evaluate(unwrap.value.clone(), scope)
+    };
     if unwrap.identifier == "_"{
         panic!("Token (_) cannot be used as an identifier.");
     }
     let evaluated = evaluate(unwrap.value.clone(), scope);
-
-    let val_to_store = match evaluated {
-        RuntimeValueServe::Owned(val) => val,
-        RuntimeValueServe::Ref(val) => val.clone_box(),
-    };
+    let val_to_store = unwrap_runtime_value_serve(evaluated.clone(), scope);
 
     let f_flag = unwrap.flags.iter().find_map(|token_type| {
         if let crate::lexer::Flags::Struct_f(attr) = token_type {
@@ -261,7 +334,7 @@ pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>
 
     scope
         .borrow_mut()
-        .var_decl(unwrap.identifier.clone(), val_to_store, unwrap.flags.clone());
+        .var_decl(unwrap.identifier.clone(), ts, unwrap.flags.clone());
 
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
@@ -324,11 +397,7 @@ pub fn minimize_numeric(value: f64) -> MinimizedNumeric {
 }
 
 fn eval_identifier<'a>( unwrap: &Identifier, scope: &'static RefCell<Scope> ) -> RuntimeValueServe {
-    let scope_borrow = scope.borrow();
-    let val_ref = Ref::map(scope_borrow, |s| {
-        s.loopup(unwrap.symbol.clone())
-    });
-    RuntimeValueServe::Ref(val_ref)
+    scope.borrow().clone().lookup(unwrap.clone().symbol.to_string())
 }
 
 
@@ -363,41 +432,8 @@ fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'static RefCell<Scope>) -> Runtim
                 );
             }
         }
-        (RuntimeValueServe::Ref(lhs_val), RuntimeValueServe::Owned(rhs_val)) => {
-            if lhs_val.Type() == RuntimeValueType::Numeric
-                && rhs_val.Type() == RuntimeValueType::Numeric
-            {
-                return eval_numeric_bin_expr(
-                    RuntimeValueServe::Ref(lhs_val),
-                    RuntimeValueServe::Owned(rhs_val),
-                    unwrap.operator.as_str(),
-                    scope
-                );
-            }
-        }
-        (RuntimeValueServe::Owned(lhs_val), RuntimeValueServe::Ref(rhs_val)) => {
-            if lhs_val.Type() == RuntimeValueType::Numeric
-                && rhs_val.Type() == RuntimeValueType::Numeric
-            {
-                return eval_numeric_bin_expr(
-                    RuntimeValueServe::Owned(lhs_val),
-                    RuntimeValueServe::Ref(rhs_val),
-                    unwrap.operator.as_str(),
-                    scope
-                );
-            }
-        }
-        (RuntimeValueServe::Ref(lhs_val), RuntimeValueServe::Ref(rhs_val)) => {
-            if lhs_val.Type() == RuntimeValueType::Numeric
-                && rhs_val.Type() == RuntimeValueType::Numeric
-            {
-                return eval_numeric_bin_expr(
-                    RuntimeValueServe::Ref(lhs_val),
-                    RuntimeValueServe::Ref(rhs_val),
-                    unwrap.operator.as_str(),
-                    scope
-                );
-            }
+        _ => {
+            panic!("Cannot operate using raw REF during runtime...");
         }
     }
 
@@ -561,9 +597,9 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
                 else {panic!("Incorrect Type Assignement");}
 
                 if let Attr::Complex(ref cmplx) = v.clone() {
-                    static_type_check(v_refined.properties.get(k).unwrap().clone(), Attr::ComplexKind, Some(Identifier{symbol: cmplx.clone()}), scope);
+                    static_type_check(unwrap_runtime_value_serve( v_refined.properties.get(k).unwrap().clone(), scope ) , Attr::ComplexKind, Some(Identifier{symbol: cmplx.clone()}), scope);
                 }else{
-                    static_type_check(v_refined.properties.get(k).unwrap().clone(), v.clone(), None, scope);
+                    static_type_check(unwrap_runtime_value_serve(v_refined.properties.get(k).unwrap().clone(), scope), v.clone(), None, scope);
                 }
 
                 
@@ -581,7 +617,7 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
                 panic!("The size of an array must be strictly equal to that of its complex.");
             }
             for entry in v_refined.entries.clone() {
-                static_type_check(entry.clone_box(), lookup_refined.attr.clone(), lookup_refined.complex.clone(), scope);
+                static_type_check(unwrap_runtime_value_serve(entry.clone(), scope), lookup_refined.attr.clone(), lookup_refined.complex.clone(), scope);
             }
        }
     }else{
@@ -589,10 +625,17 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
     }
 }
 
-pub fn unwrap_runtime_value_serve<'a>(value: RuntimeValueServe) -> Box<dyn RuntimeValue> {
+pub fn unwrap_runtime_value_serve<'a>(value: RuntimeValueServe, scope: &'static RefCell<Scope>) -> Box<dyn RuntimeValue> {
     match value {
         RuntimeValueServe::Owned(val) => val,
-        RuntimeValueServe::Ref(val) => val.clone_box(),
+        RuntimeValueServe::Ref(val) => {
+                match scope.borrow().clone().lookup(val.clone().symbol.to_string()){
+                    RuntimeValueServe::Owned(v) => v,
+                    _ => {
+                        panic!("Internal Interpreter Error; Unable to handle raw REF during runtime...");
+                    }
+                }
+        },
     }
 }
 
