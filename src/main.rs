@@ -23,6 +23,7 @@ fn main() {
         if PRINT_ {
             println!("{:?}\n", output);
         }
+        println!("----------------------------Logs----------------------------------");
 
         let evaluated = interpreter::evaluate(Box::new(output.clone()), Box::leak(Box::new(RefCell::new(init()))));
         if PRINT_ {

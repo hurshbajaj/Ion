@@ -2,12 +2,23 @@ use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::ast::{self, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, VarAsg, VarDeclaration};
+use crate::ast::{self, ArrMemberExpr, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, Str, VarAsg, VarDeclaration};
 use crate::lexer::{Attr, Flags};
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, FuncStructVal, NativeFnValue, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
-use super::values::{ArrayLiteralVal, ArrayVal};
+use super::values::{ArrayLiteralVal, ArrayVal, StrLiteral};
+
+macro_rules! extract_numeric {
+    ($any:expr, $cast_to:ty, [$($ty:ty),*]) => {
+        $(
+            if let Some(n) = $any.downcast_ref::<NumericVal<$ty>>() {
+                let val: $cast_to = n.value as $cast_to;
+                return val;
+            }
+        )*
+    };
+}
 
 #[derive(Debug)]
 pub enum RuntimeValueServe {
@@ -70,6 +81,10 @@ pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> R
             eval_identifier(astnode.as_any().downcast_ref::<Identifier>().unwrap(), scope)
 
         }
+        ast::NodeType::String => {
+            eval_string(astnode.as_any().downcast_ref::<Str>().unwrap(), scope)
+
+        }
         ast::NodeType::Nil => RuntimeValueServe::Owned(Box::new(NilVal {})),
         ast::NodeType::Bool => RuntimeValueServe::Owned(Box::new(BooleanVal {
             val: astnode
@@ -109,8 +124,34 @@ pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> R
         ast::NodeType::MemberExpr => {
             eval_membr_expr(astnode.as_any().downcast_ref::<MemberExpr>().unwrap(), scope)
         },
+        ast::NodeType::ArrMemberExpr => {
+            eval_arr_membr_expr(astnode.as_any().downcast_ref::<ArrMemberExpr>().unwrap(), scope)
+        },
         _ => panic!("Can't evaluate AST node yet: {:?}", astnode),
     }
+}
+
+fn eval_arr_membr_expr(unwrap: &ArrMemberExpr, scope: &'static RefCell<Scope>) -> RuntimeValueServe {    
+    let arr_eval = evaluate(unwrap.arr.clone(), scope);
+    let i_shell = evaluate(unwrap.clone().index, scope);
+    
+    let i = extract_as_i64(i_shell) as usize;
+
+    match arr_eval {
+        RuntimeValueServe::Owned(arr_val) => {
+            let arr_val = unwrap_runtime_value_serve(RuntimeValueServe::Owned(arr_val), scope);
+            let arr = arr_val.as_any().downcast_ref::<ArrayLiteralVal>().expect("Array indexing can only be executed on an array.");
+            let i_val = arr.entries[i].clone();
+            i_val
+        },
+        _ => {
+            panic!("Cannot work with raw REF in runtime...");
+        }   
+    }
+}
+
+fn eval_string(unwrap: &Str, _scope: &RefCell<Scope>) -> RuntimeValueServe {
+    RuntimeValueServe::Owned(Box::new(StrLiteral{content: unwrap.content.clone()}))
 }
 
 fn eval_array_literal_expr(unwrap: &ArrayLiteral, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
@@ -430,7 +471,10 @@ fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'static RefCell<Scope>) -> Runtim
                     unwrap.operator.as_str(),
                     scope
                 );
+            } else if lhs_val.Type() == RuntimeValueType::String && rhs_val.Type() == RuntimeValueType::String{
+                return RuntimeValueServe::Owned(Box::new(StrLiteral{content: lhs_val.as_any().downcast_ref::<StrLiteral>().unwrap().content.clone() + rhs_val.as_any().downcast_ref::<StrLiteral>().unwrap().content.clone().as_str()}))
             }
+            
         }
         _ => {
             panic!("Cannot operate using raw REF during runtime...");
@@ -439,18 +483,6 @@ fn eval_bin_expr<'a>(unwrap: &BinExpr, scope: &'static RefCell<Scope>) -> Runtim
 
     RuntimeValueServe::Owned(Box::new(NilVal {}))
 }
-
-macro_rules! extract_numeric {
-    ($any:expr, $cast_to:ty, [$($ty:ty),*]) => {
-        $(
-            if let Some(n) = $any.downcast_ref::<NumericVal<$ty>>() {
-                let val: $cast_to = n.value as $cast_to;
-                return val;
-            }
-        )*
-    };
-}
-
 
 fn extract_as_i64(val: RuntimeValueServe) -> i64 {
     match val {
@@ -512,7 +544,13 @@ pub fn eval_numeric_bin_expr<'a>(
                     panic!("Division by zero");
                 }
                 lhs / rhs
-            }
+            },
+            "%" => {
+                if rhs == 0.0 {
+                    panic!("Modulo by zero");
+                }
+                lhs % rhs
+            },
             _ => panic!("Invalid operator: {}", op),
         }
     } else {
@@ -527,7 +565,13 @@ pub fn eval_numeric_bin_expr<'a>(
                     panic!("Division by zero");
                 }
                 lhs / rhs
-            }
+            },
+            "%" => {
+                if rhs == 0.0 {
+                    panic!("Modulo by zero");
+                }
+                lhs % rhs
+            },
             _ => panic!("Invalid operator: {}", op),
         }
     };
@@ -541,6 +585,10 @@ pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, com
     match type_ideal {
         Attr::Numeric => {
             if is_numeric_val(&value) || value.as_any().downcast_ref::<NilVal>().is_some() {} 
+            else {panic!("Incorrect Type Assignement");}
+        },
+        Attr::String => {
+            if value.as_any().downcast_ref::<StrLiteral>().is_some() || value.as_any().downcast_ref::<NilVal>().is_some() {} 
             else {panic!("Incorrect Type Assignement");}
         },
         Attr::Bool => {

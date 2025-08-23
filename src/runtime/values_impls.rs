@@ -15,6 +15,12 @@ impl<T: num_traits::Num + fmt::Debug + fmt::Display> fmt::Display for NumericVal
     }
 }
 
+impl fmt::Display for StrLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.content)
+    }
+}
+
 impl fmt::Display for BooleanVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.val)

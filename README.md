@@ -11,6 +11,7 @@ Too lazy to try it out yourself? Feel free to run the examples! Tinkering with t
 
 ##### Currently Supported Data Types
 - [x] Numeric ~ u8 | u16 | u32 | u64 || i8 | i16 | i32 | i64 | f32 | f64 [Automatically Compressed During Interpretation]
+- [x] String
 - [x] Bool
 - [x] Complex ~ [Anonymous], Object, Array
 - [x] Structs ~ Object, Array
@@ -19,7 +20,7 @@ Too lazy to try it out yourself? Feel free to run the examples! Tinkering with t
 - [x] Member Expressions - Dot Notation (x.y)
 - [x] Comments - Single Line (//)
 - [x] Array Indexing (arr[i])
-
+- [x] String Concatenation
 ---
 ---
 

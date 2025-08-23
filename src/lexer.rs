@@ -163,7 +163,7 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
             "}" => {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::RightCurly});
             },
-            "+" | "-" | "*" | "/"=> {
+            "+" | "-" | "*" | "/" | "%"=> {
                 tokens.push(Token{value: source.remove(0), value_type: TokenType::BinOp});
             },
 
@@ -176,7 +176,6 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                 if source.len() > 0 && source[0].chars().next().unwrap().is_numeric() {
                     let mut ta = String::new();
                     let mut i = 0;
-                    let mut dot_seen = false;
 
                     while i < source.len() {
                         let ch = source[i].chars().next().unwrap();
@@ -242,6 +241,7 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                    }
                    source.remove(0);
                    tokens.push(Token{value: ta.clone(), value_type: TokenType::String});
+                   continue;
                 }
 
                if source.len() > 0 && is_identifier(source[0].as_str()) {

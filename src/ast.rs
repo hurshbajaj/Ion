@@ -26,6 +26,7 @@ pub enum NodeType{
     Object,
     MemberExpr,
     Array,
+    ArrMemberExpr,
 
     Property,
     ObjectLiteral,
@@ -124,6 +125,12 @@ pub struct ObjectLiteral{
 pub struct MemberExpr{
     pub obj: Box<dyn Expr>,
     pub prop: Box<dyn Expr>,
+}
+
+#[Expr(NodeType::ArrMemberExpr)]
+pub struct ArrMemberExpr{
+    pub arr: Box<dyn Expr>,
+    pub index: Box<dyn Expr>,
 }
 
 #[Expr(NodeType::Param)]

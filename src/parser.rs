@@ -192,6 +192,20 @@ unsafe fn parse_fn_struct() -> Box<dyn Expr> {
 }
 
 unsafe fn parse_additive_expr() -> Box<dyn Expr> {
+    if TOKENS[0].value_type == TokenType::String && TOKENS[1].value == "+" {
+        let mut lhs = parse_multiplicative_expr();
+        while TOKENS[0].value == "+"{
+            let op = TOKENS.remove(0).value;
+            let rhs = parse_multiplicative_expr();
+            lhs = Box::new(BinExpr{
+                left: lhs,
+                operator: op,
+                right: rhs,
+            })
+            
+        }
+        return lhs;
+    }
     let mut left = parse_multiplicative_expr();
 
     while !TOKENS.is_empty() && (TOKENS[0].clone().value == "+" || TOKENS[0].clone().value == "-") {
@@ -210,7 +224,7 @@ unsafe fn parse_additive_expr() -> Box<dyn Expr> {
 unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
     let mut left = parse_fn_struct(); //ideally, call parse fn struct
 
-    while !TOKENS.is_empty() && (TOKENS[0].clone().value == "*" || TOKENS[0].clone().value == "/") {
+    while !TOKENS.is_empty() && (TOKENS[0].clone().value == "*" || TOKENS[0].clone().value == "/" || TOKENS[0].clone().value == "%") {
         let op = TOKENS.remove(0).value;
         let right = parse_prim_expr();
         left = Box::new(BinExpr {
@@ -223,9 +237,6 @@ unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
     left
 }
 
-unsafe fn parse_call_array_mem_expr() -> Box<dyn Expr>{
-    todo!();
-}
 unsafe fn parse_call_mem_expr() -> Box<dyn Expr>{
     let member = parse_mem_expr(parse_prim_expr());
     if TOKENS[0].value_type == TokenType::LeftParen {
@@ -243,6 +254,11 @@ unsafe fn parse_mem_expr(mut at: Box<dyn Expr>) -> Box<dyn Expr> {
             panic!("Right hand side of the dot operator must be an Identifier");
         }
         at = parse_mem_expr(Box::new(MemberExpr{obj: at, prop}) );
+    } else if TOKENS[0].value_type == TokenType::LeftBrace {
+        TOKENS.remove(0);
+        let prop = parse_expr();
+        TOKENS.remove(0);
+        at = parse_mem_expr(Box::new(ArrMemberExpr{arr: at, index: prop}) );
     }
 
     return at;
