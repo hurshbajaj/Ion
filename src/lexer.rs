@@ -236,7 +236,7 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                if source[0] == "\"" {
                    let mut ta = String::new();
                    source.remove(0);
-                   while source[0] != "\"" {
+                   while source.get(0).expect("Missing closing [ \" ]") != "\"" {
                         ta += source.remove(0).as_str();
                    }
                    source.remove(0);

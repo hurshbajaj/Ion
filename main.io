@@ -1,1 +1,3 @@
-// hc / expect / if / while / fn complete 
+| x <structure: string>;
+log(x);
+// hc / if / while / fn complete 

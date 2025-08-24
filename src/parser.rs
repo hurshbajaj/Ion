@@ -1,4 +1,4 @@
-use std::{fmt::Debug, str::FromStr};
+se std::{fmt::Debug, str::FromStr};
 
 use crate::{ast::*, lexer::*};
 use num_traits::Num;
@@ -52,7 +52,7 @@ unsafe fn parse_to_stmt() -> Box<dyn Stmt>{
 
 unsafe fn parse_var_asg() -> Box<dyn Stmt> {
     let lhs = parse_expr();
-    TOKENS.remove(0);
+    expect(TokenType::Flag(Flags::Assign_f));
     if TOKENS.len() > 1{
         let rhs = parse_expr();
         return Box::new(VarAsg{lhs: lhs, rhs: rhs})
@@ -62,11 +62,8 @@ unsafe fn parse_var_asg() -> Box<dyn Stmt> {
 }
 
 unsafe fn parse_var_decl() -> Box<dyn Stmt> {
-    TOKENS.remove(0); 
-    let ident = TOKENS.remove(0);
-    if ident.value_type != TokenType::Identifier {
-        panic!("Missing Identifier");
-    }
+    expect(TokenType::Let_k);
+    let ident = expect(TokenType::Identifier);
 
     let mut found_flags = vec![];
 
@@ -97,16 +94,16 @@ unsafe fn parse_object_literal_expr() -> Box<dyn Expr> {
    if TOKENS[0].value_type != TokenType::LeftCurly{
         return parse_object_expr();
    }
-   TOKENS.remove(0);
+   expect(TokenType::LeftCurly);
    let mut props = vec![];
    while TOKENS[0].value_type == TokenType::Identifier {
         let key = TOKENS.remove(0).value;
-        TOKENS.remove(0);
+        expect(TokenType::Colon);
         let value = parse_expr();
-        TOKENS.remove(0);
+        expect(TokenType::Semicolon);
         props.push(PropertyLiteral{key, value});
    }
-   TOKENS.remove(0);
+   expect(TokenType::RightCurly);
    return Box::new(ObjectLiteral{properties: props})
 }
 
@@ -115,18 +112,18 @@ unsafe fn parse_object_expr() -> Box<dyn Expr> {
         return parse_array_literal_expr();
    }
    TOKENS.remove(0);
-   TOKENS.remove(0);
+   expect(TokenType::LeftCurly);
    let mut props = vec![];
    while TOKENS[0].value_type == TokenType::Identifier {
         let key = TOKENS.remove(0).value;
-        TOKENS.remove(0);
+        expect(TokenType::Colon);
         let value = get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(||{
             panic!("Incorrect type attr provided for object key")
         });
-        TOKENS.remove(0);
+        expect(TokenType::Semicolon);
         props.push(Property{key, value});
    }
-   TOKENS.remove(0);
+   expect(TokenType::RightCurly);
    return Box::new(Object{properties: props})
 }
 
@@ -148,44 +145,45 @@ unsafe fn parse_array_literal_expr() -> Box<dyn Expr> {
 
 unsafe fn parse_array_expr() -> Box<dyn Expr> { // [numeric ; nil ; 10;]
    if TOKENS[0].value_type != TokenType::arr_struct_k{
-        return parse_additive_expr();
+        return parse_fn_struct();
    }
    TOKENS.remove(0);
-   TOKENS.remove(0);
+   expect(TokenType::LeftBrace);
    let attr_shell = TOKENS.remove(0);
    let attr = get_attr(Some(attr_shell.value.as_str()));
-   TOKENS.remove(0);
+   expect(TokenType::Semicolon);
    let complex_attr_shell = TOKENS.remove(0);
    let mut complex_attr = None;
    if complex_attr_shell.value_type != TokenType::Nil_k{
         complex_attr = Some(complex_attr_shell.value);
    }
-   TOKENS.remove(0);
+   expect(TokenType::Semicolon);
    let length = usize::from_str( &(TOKENS.remove(0).value));
-   TOKENS.remove(0);
-   TOKENS.remove(0);
+   expect(TokenType::Semicolon);
+   expect(TokenType::RightBrace);
    return Box::new(Array{attr: attr.unwrap(), complex_attr, length: length.unwrap()});
 }
 
+//TODO: re-write
 unsafe fn parse_fn_struct() -> Box<dyn Expr> {
     if TOKENS[0].value_type != TokenType::fn_struct_k { 
-        return parse_call_mem_expr();
+        return parse_additive_expr();
     }
 
     TOKENS.remove(0);
-    TOKENS.remove(0);
+    expect(TokenType::LeftParen);
     let mut params = vec![];
     while TOKENS[0].value_type == TokenType::Identifier {
-        let param = TOKENS.remove(0).value;
-        TOKENS.remove(0);
+        let param = expect(TokenType::Identifier).value;
+        expect(TokenType::Colon);
         let param_type = get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(|| {
             panic!("Incorrect type attr provided as function-struct param-type");
         });
-        TOKENS.remove(0);
+        expect(TokenType::Semicolon);
         params.push(Param{param, param_type}); 
     }
-    TOKENS.remove(0);
-    TOKENS.remove(0);
+    expect(TokenType::RightBrace);
+    expect(TokenType::RetType);
     return Box::new(FnStruct{params, ret_type: get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(|| {
             panic!("Incorrect type attr provided as function-struct return-type");
         })});
@@ -222,7 +220,7 @@ unsafe fn parse_additive_expr() -> Box<dyn Expr> {
 }
 
 unsafe fn parse_multiplicative_expr() -> Box<dyn Expr> {
-    let mut left = parse_fn_struct(); //ideally, call parse fn struct
+    let mut left = parse_call_mem_expr(); 
 
     while !TOKENS.is_empty() && (TOKENS[0].clone().value == "*" || TOKENS[0].clone().value == "/" || TOKENS[0].clone().value == "%") {
         let op = TOKENS.remove(0).value;
@@ -257,7 +255,7 @@ unsafe fn parse_mem_expr(mut at: Box<dyn Expr>) -> Box<dyn Expr> {
     } else if TOKENS[0].value_type == TokenType::LeftBrace {
         TOKENS.remove(0);
         let prop = parse_expr();
-        TOKENS.remove(0);
+        expect(TokenType::RightBrace);
         at = parse_mem_expr(Box::new(ArrMemberExpr{arr: at, index: prop}) );
     }
 
@@ -277,7 +275,7 @@ unsafe fn parse_call_expr(call_to: Box<dyn Expr>) -> Box<dyn Expr> { // accounts
 }   
 
 unsafe fn parse_args() -> Vec<Box<dyn Expr>> { 
-    TOKENS.remove(0);
+    expect(TokenType::LeftParen);
     let mut args = vec![];
     if TOKENS[0].value_type == TokenType::RightParen {}
     else{
@@ -365,7 +363,13 @@ unsafe fn end_stmt(){
     if TOKENS[0].value_type == TokenType::Semicolon{
         TOKENS.remove(0);
     }else{
-        panic!("Statement must end with a ;");
+        panic!("{}", format!("Statement must end with a [ ; ] Current terminating token [ {:?} ]", TOKENS[0]));
     }
 }
 
+unsafe fn expect(tok: TokenType) -> Token {
+    if TOKENS[0].value_type != tok {
+        panic!("Expected {:?}, found {}", tok, TOKENS[0].value);
+    }
+    TOKENS.remove(0)
+}

@@ -1,9 +1,9 @@
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::ast::{self, ArrMemberExpr, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, Nil, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, Str, VarAsg, VarDeclaration};
-use crate::lexer::{Attr, Flags};
+use crate::ast::{self, ArrMemberExpr, Array, ArrayLiteral, BinExpr, CallExpr, FnStruct, Identifier, MemberExpr, NodeType, NumericLiteral, Object, ObjectLiteral, Program, Stmt, Str, VarAsg, VarDeclaration};
+use crate::lexer::Attr;
 use crate::scopes::Scope;
 use crate::values::{BooleanVal, FuncStructVal, NativeFnValue, NilVal, NumericVal, ObjectLiteralVal, ObjectVal, RuntimeValue, RuntimeValueType, StmtExecS};
 
