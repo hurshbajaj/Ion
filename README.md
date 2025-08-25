@@ -18,7 +18,7 @@ Too lazy to try it out yourself? Feel free to run the examples! Tinkering with t
 
 ##### Currently Supported
 - [x] Member Expressions - Dot Notation (x.y)
-- [x] Comments - Single Line (//)
+- [x] Comments - Single Line (//) | Multiline (/* */)
 - [x] Array Indexing (arr[i])
 - [x] String Concatenation
 ---
@@ -36,18 +36,11 @@ git clone https://github.com/hurshbajaj/Ion && cd Ion && make install && make bu
 
 ## ▶️ Try the First Example
 
-To try out the first example, feel free to run:
+To try out the first example, feel free to copy paste the contents of (t1.io) into main.io and:
 
 ```bash
-make run file="examples/t1.io"
+make run
 ```
-
-Or if you want to let your own creativity run wild, feel free to
-
-```bash
-make run file="examples/main.io"
-```
-Editing it however so you want!
 <br>
 ## ✨ Author Note
 

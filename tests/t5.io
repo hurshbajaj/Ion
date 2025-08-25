@@ -1,3 +1,3 @@
-fn FNvar (param: numeric;) @ numeric {};
+fn FNvar (param: numeric;) @ numeric {}; //NOT FUNCTIONAL!
 log(FNvar);
 

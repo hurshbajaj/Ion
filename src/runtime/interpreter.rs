@@ -634,10 +634,12 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
         return;
     }
     let lookup = eval_identifier(&ideal, scope);
-    if let RuntimeValueServe::Ref(lookup_unwrap) = lookup{
+    if let RuntimeValueServe::Owned(lookup_unwrap) = lookup{
        if lookup_unwrap.as_any().downcast_ref::<ObjectVal>().is_some(){
             let lookup_refined = lookup_unwrap.as_any().downcast_ref::<ObjectVal>().unwrap();
-            let v_refined = value.as_any().downcast_ref::<ObjectLiteralVal>().unwrap();
+            let v_refined = value.as_any().downcast_ref::<ObjectLiteralVal>().unwrap_or_else(||{
+                        panic!("{}", format!("Expected an object of type: {} | Found: {}", lookup_refined, value));
+                });
             for prop in lookup_refined.properties.iter() {
                 let k = prop.0.as_str();
                 let v = prop.1;
@@ -645,9 +647,13 @@ fn complex_static_type_check<'a>(ideal: Identifier, value: Box<dyn RuntimeValue>
                 else {panic!("Incorrect Type Assignement");}
 
                 if let Attr::Complex(ref cmplx) = v.clone() {
-                    static_type_check(unwrap_runtime_value_serve( v_refined.properties.get(k).unwrap().clone(), scope ) , Attr::ComplexKind, Some(Identifier{symbol: cmplx.clone()}), scope);
+                    static_type_check(unwrap_runtime_value_serve( v_refined.properties.get(k).unwrap_or_else(|| {
+                        panic!("{}", format!("Property {:?} doesn't exist on expression {:?}", k, v_refined));
+                    }).clone(), scope ) , Attr::ComplexKind, Some(Identifier{symbol: cmplx.clone()}), scope);
                 }else{
-                    static_type_check(unwrap_runtime_value_serve(v_refined.properties.get(k).unwrap().clone(), scope), v.clone(), None, scope);
+                    static_type_check(unwrap_runtime_value_serve(v_refined.properties.get(k).unwrap_or_else(||{
+                        panic!("{}", format!("Property {k} doesn't exist on expression {v_refined}"));
+                    }).clone(), scope), v.clone(), None, scope);
                 }
 
                 

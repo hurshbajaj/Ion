@@ -1,4 +1,4 @@
-| ref <asg> <structure: numeric> 1;
+| ref <asg> <structure: numeric> 1; //an example of our C.M.M at work :D
 | x <asg> <structure: complex> <complex: anonymous>  
 {
 	must_be_two: ref;

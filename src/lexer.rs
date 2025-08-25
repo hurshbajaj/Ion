@@ -296,18 +296,23 @@ fn filter_comments(src: String) -> String {
     let mut result = String::new();
     let chars: Vec<char> = src.chars().collect();
     let mut i = 0;
-    
+
     while i < chars.len() {
         if i < chars.len() - 1 && chars[i] == '/' && chars[i + 1] == '/' {
             while i < chars.len() && chars[i] != '\n' {
                 i += 1;
             }
-            i += 1;
+        } else if i < chars.len() - 1 && chars[i] == '/' && chars[i + 1] == '*' {
+            i += 2;
+            while i < chars.len() - 1 && !(chars[i] == '*' && chars[i + 1] == '/') {
+                i += 1;
+            }
+            i += 2; 
         } else {
             result.push(chars[i]);
             i += 1;
         }
     }
-    
+
     result
 }

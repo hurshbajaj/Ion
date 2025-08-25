@@ -1,4 +1,4 @@
-| obj_e <asg> <structure: object> 
+| obj_e <asg> <structure: object> //The object attribute argument for the flag: structure, provides a struct... Likewise with array; NOTE: for structs, the body must be preceeded by its respective keyword, for eg. arr, obj, etc.
 obj { 
     x: numeric; 
 };
@@ -7,19 +7,18 @@ obj {
     x: numeric; 
     y: obj_e;
 };
-| Obj <asg> <structure: complex> <complex: obj_main> 
+| Obj <asg> <structure: complex> <complex: obj_main> //Complex then further utilizes these structs as such.
 {
     x: 2; 
-    y: obj_e{x: 6;};
+    y: {x:1;};
 };
 
-Obj.x;
+log(Obj.y);
 
 | ObjA <asg> <structure: complex> <complex: anonymous> 
 {
     x: 2; 
 };
 
-ObjA.x;
-
+log(ObjA.x);
 
