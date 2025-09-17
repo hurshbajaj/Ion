@@ -15,7 +15,7 @@ obj {
 
 log(Obj.y);
 
-| ObjA <asg> <structure: complex> <complex: anonymous> 
+| ObjA <asg> <structure: complex> <complex: anonymous> //More on attribute-argument:anonymous later on...
 {
     x: 2; 
 };

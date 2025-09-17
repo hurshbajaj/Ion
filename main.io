@@ -7,6 +7,3 @@ my_fn("from ION!");
 
 */
 
-| x <asg> <structure: string> "hello" + "... from rust!";
-log(x);
-
