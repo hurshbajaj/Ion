@@ -36,7 +36,7 @@ git clone https://github.com/hurshbajaj/Ion && cd Ion && make install && make bu
 
 ## ▶️ Try the First Example
 
-To try out the first example, feel free to copy paste the contents of (t1.io) into main.io and:
+To try out the first example, feel free to copy paste the contents of (t1.io) from tests/ into main.io and:
 
 ```bash
 make run

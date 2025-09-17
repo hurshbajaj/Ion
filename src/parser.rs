@@ -164,29 +164,11 @@ unsafe fn parse_array_expr() -> Box<dyn Expr> { // [numeric ; nil ; 10;]
    return Box::new(Array{attr: attr.unwrap(), complex_attr, length: length.unwrap()});
 }
 
-//TODO: re-write
 unsafe fn parse_fn_struct() -> Box<dyn Expr> {
     if TOKENS[0].value_type != TokenType::fn_struct_k { 
         return parse_additive_expr();
     }
-
-    TOKENS.remove(0);
-    expect(TokenType::LeftParen);
-    let mut params = vec![];
-    while TOKENS[0].value_type == TokenType::Identifier {
-        let param = expect(TokenType::Identifier).value;
-        expect(TokenType::Colon);
-        let param_type = get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(|| {
-            panic!("Incorrect type attr provided as function-struct param-type");
-        });
-        expect(TokenType::Semicolon);
-        params.push(Param{param, param_type}); 
-    }
-    expect(TokenType::RightBrace);
-    expect(TokenType::RetType);
-    return Box::new(FnStruct{params, ret_type: get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(|| {
-            panic!("Incorrect type attr provided as function-struct return-type");
-        })});
+    todo!();
 }
 
 unsafe fn parse_additive_expr() -> Box<dyn Expr> {
