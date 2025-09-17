@@ -36,7 +36,7 @@ git clone https://github.com/hurshbajaj/Ion && cd Ion && make install && make bu
 
 ## ▶️ Try the First Example
 
-To try out the first example, feel free to copy paste the contents of (t1.io) from tests/ into main.io and:
+To try out the first example, feel free to copy paste the contents of (t1.io) into main.io and:
 
 ```bash
 make run
@@ -53,4 +53,5 @@ with AI support being limited to light debugging (outside the project whilst tes
 
 If you wish to see the debug logs / how Ion breaks down and safely parses wtv you throw at it, go into src/runtime/mod.rs and set the PRINT_ variable to true...
 **Thank you!**
+
 
