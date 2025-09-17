@@ -42,7 +42,8 @@ To try out the first example, feel free to copy paste the contents of (t1.io) in
 make run
 ```
 <br>
-##✨ Author Note
+
+## ✨ Author's Note
 
 This project is written entirely by me, including this message —  
 
