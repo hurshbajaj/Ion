@@ -13,16 +13,21 @@ use crate::values_impls;
 #[derive(PartialEq)]
 pub enum RuntimeValueType {
     Nil,
+
     Numeric,
     String,
     Boolean,
+
     ObjectVal,
+    
     ObjectLiteralVal,
     ArrayVal,
     ArrayLiteralVal,
-    StmtExec,
+    
     FnStructVal,
-    NativeFn
+    NativeFn,
+
+    StmtExec
 }
 
 #[RuntimeValue(RuntimeValueType::StmtExec)]

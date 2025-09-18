@@ -1,5 +1,4 @@
 use std::{fmt::Debug, str::FromStr};
-
 use crate::{ast::*, lexer::*};
 use num_traits::Num;
 
