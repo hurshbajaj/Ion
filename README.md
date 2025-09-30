@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="misc/icon.png" alt="Project Icon">
+</p>
 ## 😃 Intro
 
 Ion is a functional, statically typed - Interpreted - programming language written from the ground up in Rust;  
