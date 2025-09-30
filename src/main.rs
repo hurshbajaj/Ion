@@ -9,8 +9,6 @@ use runtime::*;
 
 use crate::scopes::init;
 
-use pprof::ProfilerGuard;
-
 fn main() {
     let source = fs::read_to_string("main.io")
         .expect("Failed to read file 'main.io'");
@@ -33,4 +31,3 @@ fn main() {
         } 
     }
 }
-

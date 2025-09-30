@@ -3,7 +3,9 @@ use crate::lexer::Flags;
 use crate::values::{NativeFnValue, NilVal};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::thread::scope;
+use std::io::{self, Write};
+
+use super::values::StrLiteral;
 
 #[derive(Clone)]
 pub struct VariableEntry {
@@ -120,13 +122,92 @@ impl Default for RuntimeValueServe {
 pub fn init<'a>() -> Scope {
    let mut env = Scope::new(Parent::Nil);
    env.var_decl("log".to_string(), RuntimeValueServe::Owned(  Box::new(NativeFnValue{call: Box::new(log_fn as fn(_, _) -> _)}) ), vec![Flags::Const_f]);
+   env.var_decl("get".to_string(), RuntimeValueServe::Owned(  Box::new(NativeFnValue{call: Box::new(get_fn as fn(_, _) -> _)}) ), vec![Flags::Const_f]);
 
    env
 }
 
 fn log_fn<'a>(args: Vec<RuntimeValueServe>, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    use std::io::Write;
     for arg in args{
-        println!("{}", unwrap_runtime_value_serve(arg.clone(), scope));
+        let value = unwrap_runtime_value_serve(arg.clone(), scope);
+        let output = format!("{}", value);
+        // Process escape sequences (single backslash from source)
+        let processed = process_escape_sequences(&output);
+        print!("{}", processed);
     }
+    // Flush stdout to ensure output appears immediately
+    io::stdout().flush().expect("Failed to flush stdout");
     return RuntimeValueServe::Owned(Box::new(NilVal{}))
+}
+
+fn process_escape_sequences(s: &str) -> String {
+    let mut result = String::new();
+    let mut chars = s.chars().peekable();
+    
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            if let Some(&next_ch) = chars.peek() {
+                match next_ch {
+                    'n' => {
+                        chars.next();
+                        result.push('\n');
+                    }
+                    't' => {
+                        chars.next();
+                        result.push('\t');
+                    }
+                    'r' => {
+                        chars.next();
+                        result.push('\r');
+                    }
+                    '\\' => {
+                        chars.next();
+                        result.push('\\');
+                    }
+                    '0' => {
+                        chars.next();
+                        result.push('\0');
+                    }
+                    '"' => {
+                        chars.next();
+                        result.push('"');
+                    }
+                    '\'' => {
+                        chars.next();
+                        result.push('\'');
+                    }
+                    _ => {
+                        // Unknown escape sequence, just push the backslash and continue
+                        result.push(ch);
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
+fn get_fn<'a>(args: Vec<RuntimeValueServe>, _scope: &'static RefCell<Scope>) -> RuntimeValueServe {
+    use std::io::Write;
+    if args.len() > 0{
+        panic!("get_fn() doesn't take any arguments.");
+    }
+    
+    // Flush stdout before reading to ensure any prompts are displayed
+    io::stdout().flush().expect("Failed to flush stdout");
+    
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to 'get' || read line");
+    
+    // Trim the newline character(s) from the input
+    let trimmed_input = input.trim_end().to_string();
+    
+    return RuntimeValueServe::Owned(Box::new(StrLiteral{content: trimmed_input}))
 }

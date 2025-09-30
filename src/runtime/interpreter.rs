@@ -262,15 +262,18 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Runt
 
 pub fn var_asg_ident(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe{
     let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap(); 
-    let ts =
-    match unwrap.rhs.clone().kind() {
+    
+    // Evaluate once and reuse
+    let evaluated = evaluate(unwrap.rhs.clone(), scope);
+    
+    let ts = match unwrap.rhs.clone().kind() {
         ast::NodeType::Identifier => {
             RuntimeValueServe::Ref(unwrap.rhs.clone().as_any().downcast_ref::<Identifier>().unwrap().clone())
         },
-       _ =>  evaluate(unwrap.rhs.clone(), scope)
+        _ => evaluated.clone()
     };
-    let wrapped_rhs = evaluate(unwrap.rhs.clone(), scope);
-    let refined_rhs = unwrap_runtime_value_serve(wrapped_rhs.clone(), scope);
+    
+    let refined_rhs = unwrap_runtime_value_serve(evaluated.clone(), scope);
 
     let scope_refined = scope.borrow().clone();
     let _ = scope_refined.resolve(&lhs_refined.symbol);
@@ -342,17 +345,20 @@ pub fn var_asg_membr_expr(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Ru
 }
 
 pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
-    let ts =
-    match unwrap.value.clone().kind() {
-        ast::NodeType::Identifier => {
-            RuntimeValueServe::Ref(unwrap.value.clone().as_any().downcast_ref::<Identifier>().unwrap().clone())
-        },
-       _ =>  evaluate(unwrap.value.clone(), scope)
-    };
     if unwrap.identifier == "_"{
         panic!("Token (_) cannot be used as an identifier.");
     }
+    
+    // Evaluate once and reuse
     let evaluated = evaluate(unwrap.value.clone(), scope);
+    
+    let ts = match unwrap.value.clone().kind() {
+        ast::NodeType::Identifier => {
+            RuntimeValueServe::Ref(unwrap.value.clone().as_any().downcast_ref::<Identifier>().unwrap().clone())
+        },
+        _ => evaluated.clone()
+    };
+    
     let val_to_store = unwrap_runtime_value_serve(evaluated.clone(), scope);
 
     let f_flag = unwrap.flags.iter().find_map(|token_type| {
@@ -379,7 +385,6 @@ pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>
 
     RuntimeValueServe::Owned(Box::new(StmtExecS {}))
 }
-
 
 #[derive(Debug)]
 pub enum MinimizedNumeric {
