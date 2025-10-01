@@ -56,7 +56,7 @@ unsafe fn parse_var_asg() -> Box<dyn Stmt> {
         let rhs = parse_expr();
         return Box::new(VarAsg{lhs: lhs, rhs: rhs})
     }else{
-        panic!("Incomplete Variable Assignment");
+        ERROR("Incomplete variable assignment", TOKENS[0].clone());
     }
 }
 
@@ -116,8 +116,9 @@ unsafe fn parse_object_expr() -> Box<dyn Expr> {
    while TOKENS[0].value_type == TokenType::Identifier {
         let key = TOKENS.remove(0).value;
         expect(TokenType::Colon);
+        let tok = TOKENS[0].clone();
         let value = get_attr(Some(TOKENS.remove(0).value.as_str())).unwrap_or_else(||{
-            panic!("Incorrect type attr provided for object key")
+            ERROR("Incorrect type attr provided for object key", tok);
         });
         expect(TokenType::Semicolon);
         props.push(Property{key, value});
@@ -230,7 +231,7 @@ unsafe fn parse_mem_expr(mut at: Box<dyn Expr>) -> Box<dyn Expr> {
         let prop: Box<dyn Expr>;
         prop = parse_prim_expr();
         if !prop.as_any().downcast_ref::<Identifier>().is_some() {
-            panic!("Right hand side of the dot operator must be an Identifier");
+            ERROR("Right hand side of the dot operator must be an Identifier", TOKENS[0].clone());
         }
         at = parse_mem_expr(Box::new(MemberExpr{obj: at, prop}) );
     } else if TOKENS[0].value_type == TokenType::LeftBrace {
@@ -263,7 +264,7 @@ unsafe fn parse_args() -> Vec<Box<dyn Expr>> {
         args = parse_args_list();
     }
     if TOKENS[0].value_type != TokenType::RightParen {
-        panic!("Missing Closing Paren");
+        ERROR("Missing Closing Paren", TOKENS[0].clone());
     }
     TOKENS.remove(0);
     return args;
@@ -296,19 +297,20 @@ unsafe fn parse_prim_expr() -> Box<dyn Expr> {
         }
         TokenType::BinOp => {
             if TkType.value == "-" {
+                let (lx, ly) = TOKENS[0].loc;
                 TOKENS.remove(0);
-                TOKENS.insert(0, Token{value: "*".to_string(), value_type: TokenType::BinOp});
-                TOKENS.insert(0, Token{value: "-1".to_string(), value_type: TokenType::Number});
+                TOKENS.insert(0, Token{value: "*".to_string(), value_type: TokenType::BinOp, loc: (lx.clone(), ly.clone())});
+                TOKENS.insert(0, Token{value: "-1".to_string(), value_type: TokenType::Number, loc: (lx.clone(), ly.clone())});
                 return parse_expr()
             }else{
-                panic!("Trailing Binary Operator")
+                ERROR("Trailing Binary Operator", TkType);
             }
         }
         TokenType::LeftParen => {
             TOKENS.remove(0);
             let value = parse_expr();
             if TOKENS[0].value != ")" {
-                panic!("Missing Closing Paren");
+                ERROR("Missing Closing Paren", TOKENS[0].clone());
             }
             TOKENS.remove(0);
             return value;
@@ -326,7 +328,7 @@ unsafe fn parse_prim_expr() -> Box<dyn Expr> {
             Box::new(Bool { value: false })
         }
         _ => {
-            panic!("Unexpected Token: {:?}; Cannot be parsed as an expression", TkType)
+            ERROR(&format!("Unexpected Token: {:?}; Cannot be parsed as an expression", TkType), TkType);
         }
     }
 }
@@ -344,13 +346,18 @@ unsafe fn end_stmt(){
     if TOKENS[0].value_type == TokenType::Semicolon{
         TOKENS.remove(0);
     }else{
-        panic!("{}", format!("Statement must end with a [ ; ] Current terminating token [ {:?} ]", TOKENS[0]));
+        ERROR(&format!("Statement must end with a [ ; ] | Current terminating token [ {:?} ]", TOKENS[0]), TOKENS[0].clone());
     }
 }
 
 unsafe fn expect(tok: TokenType) -> Token {
     if TOKENS[0].value_type != tok {
-        panic!("Expected {:?}, found {}", tok, TOKENS[0].value);
+        ERROR(&format!("Expected {:?}, found {}", tok, TOKENS[0].value), TOKENS[0].clone());
     }
     TOKENS.remove(0)
+}
+
+unsafe fn ERROR(msg: &str, tok: Token) -> !{
+    println!("(At {}:{})", tok.loc.0, tok.loc.1);
+    panic!("{}", msg);
 }

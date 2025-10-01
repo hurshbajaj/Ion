@@ -26,7 +26,7 @@ fn main() {
 
         let evaluated = interpreter::evaluate(Box::new(output.clone()), Box::leak(Box::new(RefCell::new(init()))));
         if PRINT_ {
-            println!("-------------------------- Runtime -------------------------------\n");
+            println!("\n-------------------------- Runtime -------------------------------\n");
             println!("Runtime Value Debug: {:?}\n", evaluated);
         } 
     }

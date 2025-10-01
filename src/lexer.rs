@@ -5,7 +5,8 @@ use crate::PRINT_;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token{
     pub value: String,
-    pub value_type: TokenType
+    pub value_type: TokenType,
+    pub loc: (isize, isize)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -127,55 +128,117 @@ pub unsafe fn get_attr(atr: Option<&str>) -> Option<Attr> {
 }
 
 pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
-    let src = filter_comments(src_commented);
+    let src = src_commented;
     let mut tokens: Vec<Token> = vec![];
     let mut source: Vec<String> = src.chars().map(|x| x.to_string()).collect();
+    let mut line_no:isize = 1;
+    let mut char_no: isize = 0;
 
     while source.len() > 0{
+        if source[0] == "\n" {
+            line_no += 1;
+            char_no = 0;
+            source.remove(0);
+            continue;
+        }
         match source[0].as_str() {
+            "/" => {
+                if source.get(1).expect("Abrupt code termination.") == "/" {
+                    while let Some(_) = source.get(0) {
+                        if source[0] != "\n" {
+                            source.remove(0);
+                            char_no += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                } else if source.get(1).expect("Abrupt code termination") == "*" {
+                    source.remove(0);
+                    source.remove(0);
+                    char_no += 2;
+
+                    while let Some(_) = source.get(0) {
+                        if source[0] == "*" && source.get(1).expect("Abrupt code termination") == "/" {
+                            source.remove(0);
+                            source.remove(0);
+                            char_no += 2;
+                            break;
+                        } else {
+                            if source[0] == "\n" {
+                                line_no += 1;
+                                char_no = 0;
+                                source.remove(0);
+                            } else {
+                                char_no += 1;
+                                source.remove(0);
+                            }
+                        }
+                    }
+                } else {
+                    tokens.push(Token {
+                        value: source.remove(0),
+                        value_type: TokenType::BinOp,
+                        loc: (line_no, char_no)
+                    });
+                    char_no += 1;
+                }
+            }
             "(" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftParen});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftParen, loc: (line_no, char_no)});
+                char_no += 1;
             },
             ";" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::Semicolon});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Semicolon, loc: (line_no, char_no)});
+                char_no += 1;
             },
             ":" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::Colon});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Colon, loc: (line_no, char_no)});
+                char_no += 1;
             },
             "." => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::Dot});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Dot, loc: (line_no, char_no)});
+                char_no += 1;
             },
             "," => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::Comma});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::Comma, loc: (line_no, char_no)});
+                char_no += 1;
             },
             ")" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightParen, loc: (line_no, char_no)});
+                char_no += 1;
             },
             "[" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftBrace});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftBrace, loc: (line_no, char_no)});
+                char_no += 1;
             },
             "]" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightBrace});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightBrace, loc: (line_no, char_no)});
+                char_no += 1;
             },    
             "{" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftCurly});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::LeftCurly, loc: (line_no, char_no)});
+                char_no += 1;
             },
             "}" => {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightCurly});
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::RightCurly, loc: (line_no, char_no)});
+                char_no += 1;
             },
-            "+" | "-" | "*" | "/" | "%"=> {
-                tokens.push(Token{value: source.remove(0), value_type: TokenType::BinOp});
+            "+" | "-" | "*" | "%"=> {
+                tokens.push(Token{value: source.remove(0), value_type: TokenType::BinOp, loc: (line_no, char_no)});
+                char_no += 1;
             },
 
             _ => {
                 if source[0].chars().collect::<Vec<char>>()[0].is_whitespace() {
                     source.remove(0);
+                    char_no += 1;
                     continue;
                 }
 
                 if source.len() > 0 && source[0].chars().next().unwrap().is_numeric() {
                     let mut ta = String::new();
                     let mut i = 0;
+                    let start_char = char_no;
 
                     while i < source.len() {
                         let ch = source[i].chars().next().unwrap();
@@ -201,65 +264,79 @@ pub unsafe fn tokenize(src_commented: String) -> Vec<Token>{
                         tokens.push(Token {
                             value: ta.clone(),
                             value_type: TokenType::Number,
+                            loc: (line_no, start_char),
                         });
                         source.drain(..i);
+                        char_no += i as isize;
                         continue;
                     }
                 }
 
                if source[0] == "<"{
                    let mut ta = String::new();
+                   let start_char = char_no;
+                   let mut count = 0;
 
                    while !ta.ends_with(">") && source.len() > 0 {
                        ta += source.remove(0).as_str();
+                       count += 1;
                    }
 
-                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Flag(get_flag(parse_flag_head(ta.clone().as_str()).as_str(), get_attr(parse_attr( ta.clone().as_str() ))).unwrap())});
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Flag(get_flag(parse_flag_head(ta.clone().as_str()).as_str(), get_attr(parse_attr( ta.clone().as_str() ))).unwrap()), loc: (line_no, start_char)});
+                   char_no += count;
                    continue;
                } 
 
                if source.len() > 0 && !source[0].chars().collect::<Vec<char>>()[0].is_whitespace() {
                    let mut i = 0;
                    let mut ta = String::new();
+                   let start_char = char_no;
                     while source.len() > i && !source[i].chars().collect::<Vec<char>>()[0].is_whitespace(){
                         ta += source[i].as_str();
                         i += 1;
 
                     }
                     if let Some(tax) = keywords.get(ta.as_str()){
-                        tokens.push(Token{value: ta.clone(), value_type: tax.clone()});
+                        tokens.push(Token{value: ta.clone(), value_type: tax.clone(), loc: (line_no, start_char)});
                         source.drain(..i);
+                        char_no += i as isize;
                         continue;
                     }
                 }
 
                if source[0] == "\"" {
                    let mut ta = String::new();
+                   let start_char = char_no;
                    source.remove(0);
+                   char_no += 1;
                    while source.get(0).expect("Missing closing [ \" ]") != "\"" {
                         ta += source.remove(0).as_str();
+                        char_no += 1;
                    }
                    source.remove(0);
-                   tokens.push(Token{value: ta.clone(), value_type: TokenType::String});
+                   char_no += 1;
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::String, loc: (line_no, start_char)});
                    continue;
                 }
 
                if source.len() > 0 && is_identifier(source[0].as_str()) {
                    let mut ta = String::new();
-                   let mut isk = false;
+                   let start_char = char_no;
+                   let mut count = 0;
                    while source.len() > 0 && is_identifier(source[0].as_str()){
                        ta += source.remove(0).as_str();
+                       count += 1;
                    }
-                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Identifier});
+                   tokens.push(Token{value: ta.clone(), value_type: TokenType::Identifier, loc: (line_no, start_char)});
+                   char_no += count;
                    continue;
                }
                
-               println!("{:?}", source[0]);
-               panic!("Token not found");
+               panic!("{}", format!("Tok [ {:?} ] not found | {}:{}", source[0], line_no, char_no));
             }
         }
     }
-    tokens.push(Token{value:String::new(), value_type: TokenType::EOF});
+    tokens.push(Token{value:String::new(), value_type: TokenType::EOF, loc: (line_no, char_no)});
 
     if PRINT_{
         println!("\n-------------------------- Lexer -------------------------------\n");
@@ -290,29 +367,4 @@ fn parse_attr(s: &str) -> Option<&str> {
 
 fn is_identifier(c: &str) -> bool {
     return c.chars().collect::<Vec<char>>()[0].is_alphabetic() || c.chars().collect::<Vec<char>>()[0] == '_';
-}
-
-fn filter_comments(src: String) -> String {
-    let mut result = String::new();
-    let chars: Vec<char> = src.chars().collect();
-    let mut i = 0;
-
-    while i < chars.len() {
-        if i < chars.len() - 1 && chars[i] == '/' && chars[i + 1] == '/' {
-            while i < chars.len() && chars[i] != '\n' {
-                i += 1;
-            }
-        } else if i < chars.len() - 1 && chars[i] == '/' && chars[i + 1] == '*' {
-            i += 2;
-            while i < chars.len() - 1 && !(chars[i] == '*' && chars[i + 1] == '/') {
-                i += 1;
-            }
-            i += 2; 
-        } else {
-            result.push(chars[i]);
-            i += 1;
-        }
-    }
-
-    result
 }
