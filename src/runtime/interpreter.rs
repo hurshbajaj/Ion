@@ -30,11 +30,10 @@ impl fmt::Display for RuntimeValueServe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RuntimeValueServe::Owned(value) => {
-                // Use the existing Display implementation of the boxed value
                 write!(f, "{}", value)
             },
             RuntimeValueServe::Ref(identifier) => {
-                // Print just the symbol field from Identifier
+                // Print just the symbol field from Identifie
                 write!(f, "{}", identifier.symbol)
             },
         }
