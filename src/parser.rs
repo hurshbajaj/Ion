@@ -67,7 +67,7 @@ unsafe fn parse_var_decl() -> Box<dyn Stmt> {
     let mut found_flags = vec![];
 
     while let TokenType::Flag(ref flag) = TOKENS[0].value_type {
-        let flag = flag.clone(); // clone the flag so you keep ownership
+        let flag = flag.clone(); 
         TOKENS.remove(0);
         found_flags.push(flag);
     }

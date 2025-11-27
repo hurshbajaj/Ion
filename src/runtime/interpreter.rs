@@ -33,7 +33,6 @@ impl fmt::Display for RuntimeValueServe {
                 write!(f, "{}", value)
             },
             RuntimeValueServe::Ref(identifier) => {
-                // Print just the symbol field from Identifie
                 write!(f, "{}", identifier.symbol)
             },
         }
@@ -55,7 +54,7 @@ pub fn evaluate<'a>(astnode: Box<dyn Stmt>, scope: &'static RefCell<Scope>) -> R
         ast::NodeType::NumericLiteralNode => {
             let val = astnode
                 .as_any()
-                .downcast_ref::<NumericLiteral<f64>>() // Still parsing as f64
+                .downcast_ref::<NumericLiteral<f64>>() 
                 .unwrap()
                 .value;
 
@@ -207,7 +206,6 @@ fn eval_call_expr<'a>(unwrap: &CallExpr, scope: &'static RefCell<Scope>) -> Runt
     todo!();
 }
 
-//ptr restructure
 fn eval_obj_literal_expr<'a>(unwrap: &ObjectLiteral, scope: &'static RefCell<Scope>) -> RuntimeValueServe {
     let mut object = ObjectLiteralVal { properties: HashMap::new() };
     for prop in &unwrap.properties {
@@ -262,7 +260,6 @@ pub fn eval_var_asg<'a>(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> Runt
 pub fn var_asg_ident(unwrap: &VarAsg, scope: &'static RefCell<Scope>) -> RuntimeValueServe{
     let lhs_refined = unwrap.lhs.as_any().downcast_ref::<Identifier>().unwrap(); 
     
-    // Evaluate once and reuse
     let evaluated = evaluate(unwrap.rhs.clone(), scope);
     
     let ts = match unwrap.rhs.clone().kind() {
@@ -348,7 +345,6 @@ pub fn eval_var_decl<'a>(unwrap: &VarDeclaration, scope: &'static RefCell<Scope>
         panic!("Token (_) cannot be used as an identifier.");
     }
     
-    // Evaluate once and reuse
     let evaluated = evaluate(unwrap.value.clone(), scope);
     
     let ts = match unwrap.value.clone().kind() {
@@ -617,7 +613,6 @@ pub fn static_type_check<'a>(value: Box<dyn RuntimeValue>, type_ideal: Attr, com
     }
 }
 
-//openfull
 macro_rules! is_numeric_val {
     ($value:expr, $( $t:ty ),*) => {
         $( $value.as_any().downcast_ref::<NumericVal<$t>>().is_some() )||*
@@ -697,4 +692,3 @@ pub fn unwrap_runtime_value_serve<'a>(value: RuntimeValueServe, scope: &'static 
     }
 }
 
-//openfull

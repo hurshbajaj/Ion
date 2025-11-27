@@ -132,11 +132,9 @@ fn log_fn<'a>(args: Vec<RuntimeValueServe>, scope: &'static RefCell<Scope>) -> R
     for arg in args{
         let value = unwrap_runtime_value_serve(arg.clone(), scope);
         let output = format!("{}", value);
-        // Process escape sequences (single backslash from source)
         let processed = process_escape_sequences(&output);
         print!("{}", processed);
     }
-    // Flush stdout to ensure output appears immediately
     io::stdout().flush().expect("Failed to flush stdout");
     return RuntimeValueServe::Owned(Box::new(NilVal{}))
 }
@@ -178,7 +176,6 @@ fn process_escape_sequences(s: &str) -> String {
                         result.push('\'');
                     }
                     _ => {
-                        // Unknown escape sequence, just push the backslash and continue
                         result.push(ch);
                     }
                 }
@@ -198,7 +195,6 @@ fn get_fn<'a>(args: Vec<RuntimeValueServe>, _scope: &'static RefCell<Scope>) -> 
         panic!("get_fn() doesn't take any arguments.");
     }
     
-    // Flush stdout before reading to ensure any prompts are displayed
     io::stdout().flush().expect("Failed to flush stdout");
     
     let mut input = String::new();
@@ -206,7 +202,6 @@ fn get_fn<'a>(args: Vec<RuntimeValueServe>, _scope: &'static RefCell<Scope>) -> 
         .read_line(&mut input)
         .expect("Failed to 'get' || read line");
     
-    // Trim the newline character(s) from the input
     let trimmed_input = input.trim_end().to_string();
     
     return RuntimeValueServe::Owned(Box::new(StrLiteral{content: trimmed_input}))
